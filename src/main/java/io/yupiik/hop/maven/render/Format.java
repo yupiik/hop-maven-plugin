@@ -1,0 +1,47 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.yupiik.hop.maven.render;
+
+/**
+ * Supported diagram export formats for the {@code render} goal.
+ * <p>
+ * Each format knows the file extension used for the generated diagram. The exporter selection for a
+ * given format and subject type (pipeline or workflow) is done in {@link RenderMojo}.
+ */
+public enum Format {
+    /**
+     * Scalable Vector Graphics ({@code .svg}).
+     */
+    SVG("svg"),
+    /**
+     * Mermaid flowchart ({@code .mmd}).
+     */
+    MERMAID("mmd");
+
+    private final String extension;
+
+    Format(final String extension) {
+        this.extension = extension;
+    }
+
+    /**
+     * @return the file extension (without leading dot) used for the generated diagram.
+     */
+    public String getExtension() {
+        return extension;
+    }
+}

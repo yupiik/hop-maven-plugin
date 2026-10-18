@@ -1,0 +1,25 @@
+# --- Maven build output ---
+target/
+*/target/
+!src/**/target/
+
+# --- Local project Maven repository cache (resolved by the .mvn wrapper) ---
+.mvn/target/
+
+# --- Tooling - generated code graph and memory ---
+.yca/
+**/.yca/
+
+# --- Generated documentation (mojo reference pages produced from plugin.xml by the
+#     minisite pre-action at build time) ---
+src/main/minisite/content/mojo/
+**/src/main/minisite/content/mojo/
+
+# --- IDE / OS ---
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+.DS_Store

@@ -1,0 +1,58 @@
+= Overview
+:minisite-index: 200
+:minisite-index-title: Why this plugin
+:minisite-index-icon: layer-group
+:minisite-index-description: Headless diagram generation from Apache Hop projects.
+
+This page explains the rationale and the rendering approach. It intentionally does not re-list the
+goal parameters: refer to the generated xref:mojo/render.adoc[render goal reference] for those.
+
+== Why render diagrams in the build?
+
+Apache Hop projects hold pipelines and workflows as XML files (`.hpl` and `.hwf`). The Hop editor
+offers a graphical canvas, but producing an up-to-date picture of every diagram at each commit is
+tedious and drifts quickly. Generating diagrams during the build gives a reproducible, versioned and
+always-current view of the flows.
+
+HOP ships headless painters and diagram exporters, so the whole rendering can happen without opening
+a GUI. This plugin exposes those capabilities as a plain Maven goal.
+
+== Project layout the plugin expects
+
+By default the plugin follows the standard Apache Hop project layout:
+
+* diagram files (`.hpl`, `.hwf`) live directly in the project folder,
+* the metadata base folder is `metadata/` (your `rdbms`, run configurations, ...),
+* variables are declared in `project-config.json` under `config.variables`.
+
+All of these are configurable, so a project that uses a different layout (for example files under
+`src/main/repositories`) can override the inputs from its own `pom.xml` without any code change.
+
+== The rendering approach
+
+The `render` goal:
+
+. initializes the headless Hop environment,
+. injects the declared variables into a Hop variable space,
+. builds a metadata provider on top of the metadata folder so database connections and other
+  metadata resolve,
+. discovers every supported diagram file, honoring include/exclude patterns,
+. loads each file as a Hop pipeline or workflow,
+. and writes one diagram per requested format under the output folder, keeping the source-relative
+  path.
+
+The exporter selection is a direct `switch` on the format (SVG or Mermaid) and the subject type
+(pipeline or workflow), so no runtime plugin discovery is needed.
+
+== Headless operation
+
+`HopEnvironment.init()` is idempotent and there is no shutdown API to call, so the goal is safe to
+invoke repeatedly (for example once per module) in the same JVM; process exit cleans everything up.
+
+== Output
+
+SVG diagrams are written with a `.svg` extension and Mermaid flowcharts with `.mmd`. The output
+folder mirrors the source tree, so `utilities/oracle_sync/J_SYNC_PARTITION.hwf` renders to
+`<target>/utilities/oracle_sync/J_SYNC_PARTITION.svg` (and/or `.mmd`).
+
+Continue with xref:usage.adoc[Usage] to see how to wire it and how to render the sample project.

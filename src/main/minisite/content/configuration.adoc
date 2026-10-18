@@ -1,0 +1,139 @@
+= Configuration
+:minisite-index: 400
+:minisite-index-title: Configuration
+:minisite-index-icon: sliders-h
+:minisite-index-description: Variables, metadata and format wiring.
+
+This page explains how the goal is wired (variables, metadata, formats) and how the pieces fit
+together. The authoritative, per-parameter documentation is the generated
+xref:mojo/render.adoc[render goal reference].
+
+== Variables
+
+Before any diagram is loaded, the goal builds a Hop variable space and injects values into it:
+
+* the Maven project properties are added first,
+* then the variables from the config file (if any).
+
+The default config file is a standard Hop `project-config.json`; the goal reads its
+`config.variables` array, where each entry is `{name, value, description}`. A file exposing a
+top-level `variables` array (same entry shape) is also accepted, which is convenient for environment
+config files.
+
+These variables resolve HOP references such as `${pc.databases.ora11.host}` or
+`${pc.sync.audit.table}`. References that remain unresolved are rendered verbatim (for example
+`${PROJECT_HOME}`) without failing the build.
+
+TIP: the sample project stores connection settings in an `env-config.json` with a `variables` array;
+that file is directly usable as the `configFile`.
+
+== Metadata
+
+The `metadataFolder` (default `<project-basedir>/metadata`) is handed to a `JsonMetadataProvider`
+wrapped in a `MultiMetadataProvider`. This lets `rdbms` connections and other metadata referenced by
+the pipelines resolve during loading. Without it, files referencing shared metadata could fail to
+load.
+
+== Formats
+
+The `formats` parameter selects which diagrams to write. Each format produces one file per source
+diagram, and the exporter is chosen with a `switch` on the format plus the subject type (pipeline or
+workflow):
+
+* `SVG` - Scalable Vector Graphics (`.svg`)
+* `MERMAID` - Mermaid flowchart (`.mmd`)
+
+The output uses the source-relative path prefixed by `targetFolder`, so multiple formats coexist
+without overwriting each other.
+
+== Output folder
+
+`targetFolder` defaults to `${project.build.directory}/hop-diagrams`. It is created if needed and
+the source-relative directories are mirrored under it.
+
+== Notes and magnification
+
+`includeNotes` controls whether Hop notepad annotations are included in the diagram, and
+`magnification` scales the SVG output (default `1.0`).
+
+== Auto-resolving Hop plugins
+
+Out of the box Hop discovers the transforms and actions shipped by the `hop-transform-*` and
+`hop-action-*` modules that are on the plugin classpath: without them the icons are rendered as a
+generic box (or the build fails with `failOnMissing`).
+
+Set `autoResolve` to `true` to let the goal resolve the missing modules with the Maven resolver:
+
+[source,xml]
+----
+<configuration>
+  <autoResolve>true</autoResolve>
+</configuration>
+----
+
+The goal scans the rendered `.hpl`/`.hwf` files, extracts the transform and action ids, maps every
+id to an artifact and resolves it (with its transitive dependencies) into
+`<target>/hop-plugins/transforms/<artifactId>/` (or `actions/`), then registers the plugins into
+the Hop registry programmatically. No JVM-global system property is set, so several goal executions
+can run concurrently in the same build: the resolution and staging phase is lock-free, only the
+registry registration is serialized on the Hop environment class.
+
+The resolutions are run in parallel with Maven's own artifact-thread setting: the number of workers
+comes from the same `maven.artifact.threads` configuration the resolver uses (falling back to
+`aether.dependencyCollector.bf.threads`, then 1). The staging copies are idempotent (temp file +
+atomic move), so repeated or concurrent executions never observe partial files.
+
+=== id to artifact mapping
+
+The default rule is `org.apache.hop:hop-transform-<id>` / `org.apache.hop:hop-action-<id>`
+(lowercase), completed by a built-in table for the modules that bundle several plugins (for example
+`CsvInput`, `TextFileInput2` and `TextFileOutput` all live in `hop-transform-textfile`). Override
+or extend it per plug-in id:
+
+[source,xml]
+----
+<configuration>
+  <autoResolve>true</autoResolve>
+  <transform2ArtifactMapping>
+    <DataGrid>org.apache.hop:hop-transform-datagrid:2.20.0</DataGrid>
+  </transform2ArtifactMapping>
+  <action2ArtifactMapping>
+    <WRITE_TO_LOG>com.acme:custom-write-to-log</WRITE_TO_LOG>
+  </action2ArtifactMapping>
+</configuration>
+----
+
+Each value is either a bare `artifactId` (resolved with the detected Hop version), a
+`groupId:artifactId` pair, or full `groupId:artifactId:version` coordinates.
+
+=== Parameters
+
+* `autoResolve` - enable the resolution (default `false`)
+* `transform2ArtifactMapping` / `action2ArtifactMapping` - id to artifact overrides (see above)
+* `autoResolvePluginsFolder` - staging folder, default `${project.build.directory}/hop-plugins`
+* `autoResolveVersion` - version used for bare artifactIds, defaults to the Hop version the plugin
+  runs against
+
+TIP: the staged folder is a plain cache: it can be deleted, the artifacts are re-resolved on the
+next run from the local Maven repository.
+
+== Example: non-standard layout
+
+[source,xml]
+----
+<configuration>
+  <sourceFolder>${project.basedir}/src/main/repositories</sourceFolder>
+  <metadataFolder>${project.basedir}/src/main/repositories/metadata</metadataFolder>
+  <configFile>${project.basedir}/src/main/resources/hosts/local/env-config.json</configFile>
+  <targetFolder>${project.build.directory}/hop-diagrams</targetFolder>
+  <formats>
+    <format>SVG</format>
+  </formats>
+</configuration>
+----
+
+== Next steps
+
+Review the generated xref:mojo/hop-maven-plugin.adoc[goals index] and the
+xref:mojo/render.adoc[render goal reference] for the exact parameter names, types, required flags,
+defaults and Maven properties.
