@@ -2,35 +2,34 @@
 :minisite-index: 200
 :minisite-index-title: Why this plugin
 :minisite-index-icon: layer-group
-:minisite-index-description: Headless diagram generation from Apache Hop projects.
+:minisite-index-description: One Maven plugin for the whole Apache Hop lifecycle: render, document, build, run and operate.
 
-This page explains the rationale and the rendering approach. It intentionally does not re-list the
-goal parameters: refer to the generated xref:mojo/render.adoc[render goal reference] for those.
+This page explains the rationale behind the plugin. It intentionally does not re-list the goal
+parameters: see the generated xref:mojo/hop-maven-plugin.adoc[goal reference index] for those.
 
-== Why render diagrams in the build?
+== Why a Maven plugin for Apache Hop?
 
-Apache Hop projects hold pipelines and workflows as XML files (`.hpl` and `.hwf`). The Hop editor
-offers a graphical canvas, but producing an up-to-date picture of every diagram at each commit is
-tedious and drifts quickly. Generating diagrams during the build gives a reproducible, versioned and
-always-current view of the flows.
+Apache Hop projects are XML pipelines (`.hpl`) and workflows (`.hwf`) plus the metadata that drives
+them. The Hop editor offers a graphical canvas, but every repetitive, build-friendly step around that
+content - rendering diagrams, generating documentation, assembling a runtime distribution, running the
+flows and wrapping the CLIs - is manual and drifts quickly.
 
-HOP ships headless painters and diagram exporters, so the whole rendering can happen without opening
-a GUI. This plugin exposes those capabilities as a plain Maven goal.
+This plugin exposes those operations as plain Maven goals, so they become reproducible, versioned and
+always current from the build. It covers the whole lifecycle of a Hop project:
 
-== Project layout the plugin expects
+* xref:goals.adoc[render] - headless diagram generation,
+* xref:goals.adoc[generate-doc] - per-flow documentation and index,
+* xref:goals.adoc[build] - custom distribution assembly,
+* xref:goals.adoc[run] - headless execution,
+* xref:goals.adoc[server] / xref:goals.adoc[server-stop] - Hop server lifecycle,
+* and the CLI wrappers xref:goals.adoc[encrypt] and xref:goals.adoc[gui].
 
-By default the plugin follows the standard Apache Hop project layout:
-
-* diagram files (`.hpl`, `.hwf`) live directly in the project folder,
-* the metadata base folder is `metadata/` (your `rdbms`, run configurations, ...),
-* variables are declared in `project-config.json` under `config.variables`.
-
-All of these are configurable, so a project that uses a different layout (for example files under
-`src/main/repositories`) can override the inputs from its own `pom.xml` without any code change.
+It follows the standard Hop project layout by default (diagrams at the project root, `metadata/` for
+metadata, `project-config.json` for variables) and every input is overridable from the `pom.xml`.
 
 == The rendering approach
 
-The `render` goal:
+Rendering is the headless face of Hop. The `render` goal:
 
 . initializes the headless Hop environment,
 . injects the declared variables into a Hop variable space,
@@ -41,18 +40,17 @@ The `render` goal:
 . and writes one diagram per requested format under the output folder, keeping the source-relative
   path.
 
-The exporter selection is a direct `switch` on the format (SVG or Mermaid) and the subject type
-(pipeline or workflow), so no runtime plugin discovery is needed.
+HOP ships headless painters and diagram exporters, so the whole rendering happens without opening a
+GUI. `HopEnvironment.init()` is idempotent and there is no shutdown API to call, so the goal is safe
+to invoke repeatedly (for example once per module) in the same JVM; process exit cleans everything up.
 
-== Headless operation
+== One distribution, many goals
 
-`HopEnvironment.init()` is idempotent and there is no shutdown API to call, so the goal is safe to
-invoke repeatedly (for example once per module) in the same JVM; process exit cleans everything up.
+`build`, `run`, `encrypt`, `gui` and `server` all share the same distribution assembly: they resolve
+and unpack a Hop client zip, merge a repository on top and differ only in the launcher script they
+execute. This keeps the whole toolchain consistent on a single resolved Hop version.
 
-== Output
+== Next steps
 
-SVG diagrams are written with a `.svg` extension and Mermaid flowcharts with `.mmd`. The output
-folder mirrors the source tree, so `utilities/oracle_sync/J_SYNC_PARTITION.hwf` renders to
-`<target>/utilities/oracle_sync/J_SYNC_PARTITION.svg` (and/or `.mmd`).
-
-Continue with xref:usage.adoc[Usage] to see how to wire it and how to render the sample project.
+See xref:goals.adoc[Goals] for the goal catalog, xref:usage.adoc[Usage] for wiring and build
+integration, and the xref:mojo/hop-maven-plugin.adoc[goal reference index] for parameters.

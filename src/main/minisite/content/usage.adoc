@@ -2,50 +2,55 @@
 :minisite-index: 300
 :minisite-index-title: Usage
 :minisite-index-icon: play
-:minisite-index-description: Run the render goal from the CLI or bind it to the build.
+:minisite-index-description: From a bare Hop project to rendered diagrams, generated docs and a runnable distribution.
 
-This page shows how to invoke the `render` goal. For the full list of parameters and their defaults,
-see the generated xref:mojo/render.adoc[render goal reference].
+This page walks through a real Apache Hop project from scratch and shows the concrete goals you apply
+at each step: render diagrams, generate documentation, build a distribution and run it. The
+authoritative, per-goal reference (every parameter, its type, its default and its Maven property) is
+generated from `plugin.xml` and available in the xref:mojo/hop-maven-plugin.adoc[goal reference
+index].
 
-== Command line
+== Getting started: a minimal Hop project
 
-On a project with the standard Hop layout (diagrams at the project root, metadata in `metadata/`,
-variables in `project-config.json`) this is enough:
+Apache Hop pipelines and workflows are XML files, normally authored in the Hop GUI. A Hop project is
+just a folder - by convention pipelines (`.hpl`) and workflows (`.hwf`) live at the project root, the
+metadata in `metadata/`, and the project variables in `project-config.json`:
+
+[source,text]
+----
+demo-hop/
+  metadata/                <- database connections, run configurations
+  project-config.json      <- config.variables
+  my-pipeline.hpl          <- one pipeline (XML)
+----
+
+This layout matches the plugin defaults, so `render` works out of the box on any such project. The
+plugin only reads the XML files; it does not need the Hop GUI to render or run them.
+
+== Use case 1: render the diagrams in the build
+
+Render every `.hpl`/`.hwf` to SVG (and optionally Mermaid) headlessly, keeping the source-relative
+path. This gives a reproducible, always-current picture of your flows on every commit or CI run.
+
+From the shell, on a project with the standard layout:
 
 [source,bash]
 ----
 mvn io.yupiik.hop:hop-maven-plugin:<version>:render
 ----
 
-Everything is usually overridable with the `hop.render.<name>` system properties described in the
-parameter reference. For example, to point at a non-standard source folder and metadata folder and
-to render both SVG and Mermaid:
+Parameters are overridable with the `-Dhop.render.<name>` properties declared in the
+xref:mojo/render.adoc[render reference]. For example, to render only SVG into a dedicated folder:
 
 [source,bash]
 ----
 mvn io.yupiik.hop:hop-maven-plugin:<version>:render \
-  -Dhop.render.sourceFolder=src/main/repositories \
-  -Dhop.render.metadataFolder=src/main/repositories/metadata \
-  -Dhop.render.configFile=src/main/resources/hosts/local/env-config.json \
-  -Dhop.render.formats=SVG,MERMAID
+  -Dhop.render.targetFolder=target/hop-diagrams \
+  -Dhop.render.formats=SVG
 ----
 
-When the diagrams use transforms or actions that are not on the plugin classpath, enable the
-auto-resolve mode to fetch the matching `hop-transform-*`/`hop-action-*` modules with the Maven
-resolver:
-
-[source,bash]
-----
-mvn io.yupiik.hop:hop-maven-plugin:<version>:render \
-  -Dhop.render.autoResolve=true
-----
-
-See xref:configuration.adoc[Configuration] for the mapping rules and the related parameters.
-
-== Binding to the build
-
-Declare the plugin and add an execution to run `render` in a phase of your choice, for example
-`process-resources` so diagrams are generated early and can be referenced by later steps:
+To get it on every build, bind the goal in a phase - `process-resources` so the diagrams are
+available to later steps (for example to be copied into the generated documentation):
 
 [source,xml]
 ----
@@ -62,15 +67,13 @@ Declare the plugin and add an execution to run `render` in a phase of your choic
             <goal>render</goal>
           </goals>
           <configuration>
-            <!-- override the HOP-standard defaults for a non-standard layout -->
-            <sourceFolder>${project.basedir}/src/main/repositories</sourceFolder>
-            <metadataFolder>${project.basedir}/src/main/repositories/metadata</metadataFolder>
-            <configFile>${project.basedir}/src/main/resources/hosts/local/env-config.json</configFile>
+            <sourceFolder>${project.basedir}</sourceFolder>
+            <metadataFolder>${project.basedir}/metadata</metadataFolder>
+            <configFile>${project.basedir}/project-config.json</configFile>
+            <targetFolder>${project.build.directory}/hop-diagrams</targetFolder>
             <formats>
               <format>SVG</format>
-              <format>MERMAID</format>
             </formats>
-            <targetFolder>${project.build.directory}/hop-diagrams</targetFolder>
           </configuration>
         </execution>
       </executions>
@@ -79,82 +82,92 @@ Declare the plugin and add an execution to run `render` in a phase of your choic
 </build>
 ----
 
-== include/exclude patterns
-
-`includes` and `excludes` take Ant-style globs matched against the source-relative path. For
-example, to render only files under `utilities/`:
+When your flows use transforms not shipped by the base plugin classpath, enable `autoResolve` and the
+goal fetches the matching `hop-transform-*`/`hop-action-*` modules with the Maven resolver:
 
 [source,xml]
 ----
-<includes>
-  <include>utilities/**/*.hpl</include>
-  <include>utilities/**/*.hwf</include>
-</includes>
+<configuration>
+  <autoResolve>true</autoResolve>
+</configuration>
 ----
 
-When `includes` is empty every supported file is processed.
+== Use case 2: generate documentation for every flow
 
-## Example: a Hop project with repositories under `src/main`
-
-The sample project used by this documentation keeps its Hop project home under
-`src/main/repositories`. Because the plugin defaults are HOP-standard, you customize it via the
-plugin configuration as shown above, or via the matching `hop.render.*` properties. The `metadata`
-folder is the one passed to the HOP metadata provider, so database connections resolve correctly.
-
-See xref:configuration.adoc[Configuration] for the wiring details.
-
-## Building a custom distribution
-
-The `build` goal downloads the configured Hop client zip, enriches it and packages it back as a zip:
-
-[source,xml]
-----
-<plugin>
-  <groupId>io.yupiik.hop</groupId>
-  <artifactId>hop-maven-plugin</artifactId>
-  <executions>
-    <execution>
-      <id>build-hop</id>
-      <goals>
-        <goal>build</goal>
-      </goals>
-      <configuration>
-        <hopVersion>2.19.0</hopVersion>
-        <!-- put overrides/config under src/main/hop/distribution, they win over the distribution -->
-        <baseDirectory>${project.basedir}/src/main/hop/distribution</baseDirectory>
-        <drivers>
-          <driver>com.oracle.database.jdbc:ojdbc11:23.5.0.24.07</driver>
-        </drivers>
-        <libs>
-          <lib>org.apache.hop:hop-core:2.19.0</lib>
-        </libs>
-      </configuration>
-    </execution>
-  </executions>
-</plugin>
-----
-
-The produced zip is attached to the build (classifier configurable with `classifier`). See the generated
-xref:build.adoc[build goal reference] for the full parameter list (transforms, marketplace plugins, jar
-overrides, javaagent support and the download credentials).
-
-## Running a pipeline or workflow
-
-`run` resolves a distribution (the one built and attached as a zip, or a distribution coordinate),
-merges a repository folder and runs `hop-run.sh`:
+`generate-doc` reuses the same discovery as `render` and writes one page per flow plus an index (and
+optionally the diagram images and an `llms.txt` mirror), derived directly from the Hop files:
 
 [source,xml]
 ----
 <execution>
-  <id>run</id>
+  <id>generate-doc</id>
+  <phase>process-resources</phase>
+  <goals>
+    <goal>generate-doc</goal>
+  </goals>
+  <configuration>
+    <sourceFolder>${project.basedir}</sourceFolder>
+    <outputDirectory>${project.build.directory}/generated-site/content/hop</outputDirectory>
+    <imageFolder>${project.build.directory}/generated-site/images/diagrams</imageFolder>
+    <includeImage>true</includeImage>
+  </configuration>
+</execution>
+----
+
+TIP: point `outputDirectory` at a `src/main/minisite/content/...` folder to feed the generated pages
+straight into a yupiik minisite, exactly like the reference pages you are reading now.
+
+== Use case 3: bundle a self-contained distribution
+
+`build` takes a stock Hop client zip, enriches it and packages a zip you can ship. It resolves the
+version from `versionUrl` (defaults to the Apache downloads) and, from the `baseDirectory` (default
+`src/main/hop/distribution`), copies your files on top so they win over the upstream content:
+
+[source,xml]
+----
+<execution>
+  <id>build-hop</id>
+  <goals>
+    <goal>build</goal>
+  </goals>
+  <configuration>
+    <hopVersion>2.20.0</hopVersion>
+    <baseDirectory>${project.basedir}/src/main/hop/distribution</baseDirectory>
+    <drivers>
+      <driver>com.oracle.database.jdbc:ojdbc11:23.5.0.24.07</driver>
+    </drivers>
+    <libs>
+      <lib>org.jooq:jooq:3.19.0</lib>
+    </libs>
+    <transforms>
+      <transform>com.acme:acme-custom-transform:1.0.0</transform>
+    </transforms>
+  </configuration>
+</execution>
+----
+
+The zip is written to `target/<finalName>.zip` and attached to the build by default; override the
+classifier with `classifier` and disable packaging or attachment with `packageDistribution`/`attach`.
+A later goal in the same reactor can reference it as a distribution.
+
+== Use case 4: run a pipeline or workflow headlessly
+
+`run` resolves a distribution (the one attached by `build`, or a
+`groupId:artifactId:version[:type[:classifier]]` coordinate), unpacks it, merges a `repository` folder
+on top and executes a pipeline or workflow via `hop-run.sh`/`hop-run.bat`:
+
+[source,xml]
+----
+<execution>
+  <id>run-demo</id>
   <goals>
     <goal>run</goal>
   </goals>
   <configuration>
-    <!-- use the distribution attached by the build goal of the same reactor -->
+    <!-- the distribution built by the same reactor -->
     <distribution>${project.groupId}:${project.artifactId}:${project.version}:zip</distribution>
-    <repository>${project.basedir}/src/main/repositories</repository>
-    <workflow>utilities/oracle_sync/J_SYNC.hwf</workflow>
+    <repository>${project.basedir}</repository>
+    <pipeline>my-pipeline.hpl</pipeline>
     <runConfig>local</runConfig>
     <parameters>
       <pc.env>LOCAL</pc.env>
@@ -163,10 +176,14 @@ merges a repository folder and runs `hop-run.sh`:
 </execution>
 ----
 
-## Running the Hop server and stopping it
+A headless `hop-run` needs a run configuration Hop can find. Put it in the merged repository under
+`config/metadata/pipeline-run-configuration/local.json` (Hop reads `config/metadata`, not `metadata/`)
+and reference it with `runConfig=local`.
 
-`server` starts the Hop server in the background (`waitFor=false` by default). Stop it with
-`server-stop`, which reads host/port/auth from `hop-server.xml`:
+== Use case 5: run the Hop server and stop it
+
+`server` starts the Hop server in the background for interactive or long-running workloads;
+`server-stop` sends the authenticated `/shutdown` request:
 
 [source,xml]
 ----
@@ -177,7 +194,7 @@ merges a repository folder and runs `hop-run.sh`:
   </goals>
   <configuration>
     <distribution>${project.groupId}:${project.artifactId}:${project.version}:zip</distribution>
-    <repository>${project.basedir}/src/main/repositories</repository>
+    <repository>${project.basedir}</repository>
   </configuration>
 </execution>
 <execution>
@@ -191,15 +208,14 @@ merges a repository folder and runs `hop-run.sh`:
 </execution>
 ----
 
-`encrypt` and `gui` wrap the `hop-encrypt` / `hop-gui` launchers with the same distribution management
-(see their generated goal references).
 == Prerequisites and pitfalls
 
-The following operational details matter when using the distribution/run/CLI goals.
+These operational details matter when using the distribution/run/CLI goals; each goal's parameters are
+documented in its xref:mojo/hop-maven-plugin.adoc[goal reference].
 
 === Passing arguments to the wrapped CLIs (`encrypt`, `run`, `gui`, `server`)
 
-Extra launcher arguments must be provided as a list of separate tokens via `<args>`. A single string
+Extra launcher arguments must be a list of separate tokens via `<args>`. A single string
 `-D...args="-hop supersecret"` becomes one argv element and will not be split:
 
 [source,xml]
@@ -210,14 +226,14 @@ Extra launcher arguments must be provided as a list of separate tokens via `<arg
 </args>
 ----
 
-For the `encrypt` goal the underlying `hop-encrypt.sh` expects `hop-encrypt.sh <-hop|-server> <password>`
-and prints `Encrypted <hash>` on success. Set `waitFor=true` (the default) so the exit code and output
-are captured.
+For `encrypt` (a typical need when externalizing a configuration), the underlying `hop-encrypt.sh`
+expects `hop-encrypt.sh <-hop|-server> <password>` and prints `Encrypted <hash>` on success. Keep
+`waitFor=true` (the default) so the exit code and output are captured.
 
 === Resolving extra transforms/plugins (the "marketplace")
 
-`build` resolves extra transform/plugin coordinates through the Maven resolver, so the project must
-declare the repository that hosts them. Hop artifacts live on the ASF releases repository:
+`build` resolves transform/plugin coordinates through the Maven resolver, so the project must declare
+the repository that hosts them. Hop artifacts live on the ASF releases repository:
 
 [source,xml]
 ----
@@ -235,8 +251,8 @@ run time.
 
 === Javaagent injection
 
-Javaagent coordinates listed in `javaagents` are downloaded into `hop/lib` and injected into the JVM
-launch of every `hop-*.sh`/`.bat`, in definition order. For example the OpenTelemetry agent:
+Javaagent coordinates in `javaagents` are downloaded into `hop/lib` and injected into the JVM launch
+of every `hop-*.sh`/`.bat`, in definition order. For example the OpenTelemetry agent:
 
 [source,xml]
 ----
@@ -248,10 +264,8 @@ launch of every `hop-*.sh`/`.bat`, in definition order. For example the OpenTele
 You can verify the agent is active from its startup banner in the launcher output, e.g.
 `opentelemetry-javaagent - version: 2.10.0`.
 
-=== Running pipelines unless headless (`run`)
+== Next steps
 
-A headless `hop-run` needs a run configuration Hop can find. The `run` goal merges the configured
-`repository` onto the unpacked distribution, so place the run configuration under
-`config/metadata/pipeline-run-configuration/local.json` (Hop reads `config/metadata`, not
-`metadata/`) and reference it with `runConfig=local` (default `local`). Pipelines paths given in
-`pipeline`/`workflow` are resolved relative to the merged repository.
+See the xref:goals.adoc[Goals] page for the full goal catalog, the xref:mojo/hop-maven-plugin.adoc[goal
+reference index] for every parameter, and xref:configuration.adoc[Configuration] for the render-specific
+variable, metadata and format wiring.

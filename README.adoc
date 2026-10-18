@@ -1,0 +1,70 @@
+= Hop Maven Plugin
+
+Apache Hop Maven goals: render pipelines and workflows as diagrams, generate documentation, build
+custom Hop distributions (transforms, marketplace plugins, JDBC drivers, overrides), run
+pipelines/workflows and wrap the Hop encrypt/gui/server CLIs.
+
+== Requirements
+
+* JDK 21 or newer (the build compiles with `--release 21`).
+* Apache Maven 3.9.x and a Maven setup able to resolve
+  `org.apache.hop:hop-core:2.20.0-SNAPSHOT` (a SNAPSHOT, so it is not on Maven Central).
+
+== Building the plugin
+
+.Compile and run the tests
+
+[source,bash]
+----
+mvn verify
+----
+
+.Install the plugin in the local repository (so other projects can use the goals)
+
+[source,bash]
+----
+mvn install
+----
+
+== Building and running the minisite
+
+The minisite (the documentation website) is generated in the `package` phase by the
+`yupiik-tools-maven-plugin` `minisite` goal. It requires the plugin to be compiled first, because a
+pre-action reads `META-INF/maven/plugin.xml` to generate the per-goal reference pages.
+
+.Compile and generate the site
+
+[source,bash]
+----
+mvn package
+----
+
+The output is a fully static site in `target/hop-maven-plugin/`. Open it with any static file server,
+or directly from the filesystem - the pages use relative links, so they work from `file://` too.
+
+.Live-preview with a local server (Python's built-in HTTP server)
+
+[source,bash]
+----
+mvn package
+python3 -m http.server --directory target/hop-maven-plugin 8080
+# then open http://localhost:8080
+----
+
+The site is configured in the `minisite` execution of `pom.xml`: `source` is
+`src/main/minisite`, `target` is `target/hop-maven-plugin`, and the per-goal pages are emitted by the
+`maven-plugin` pre-action into `src/main/minisite/content/mojo/`. That folder is git-ignored because
+the pages are generated.
+
+=== Structure of the minisite sources
+
+* `src/main/minisite/content/*.adoc` - the hand-written pages (overview, goals, usage, configuration).
+* `src/main/minisite/content/mojo/*.adoc` - the generated per-goal reference pages (not committed).
+* Page navigation is driven by the `minisite-index-*` AsciiDoc attributes on each page: only pages
+  that carry them appear in the home page tiles and the left menu.
+
+== Deploying the site
+
+The `minisite.deploy` property is disabled by default (`false`). When enabled it triggers a deploy
+step, but no FTP target is configured in this project yet - the published site
+(https://github.com/yupiik/hop-maven-plugin) is hosted on GitHub Pages.

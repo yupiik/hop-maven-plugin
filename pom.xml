@@ -298,6 +298,9 @@
               <indexText>Hop Maven Plugin</indexText>
               <indexSubTitle>Maven goals to render, document, build, run and manage Apache Hop projects.</indexSubTitle>
               <preferYupiikAsciidoc>true</preferYupiikAsciidoc>
+              <customHead>
+                <![CDATA[<style>dt.hdlist1 { font-weight: bold; }</style>]]>
+              </customHead>
               <siteBase>https://yupiik.github.io/hop-maven-plugin</siteBase>
               <copyright>Copyright Yupiik - Licensed under the Apache Software License version 2.0</copyright>
               <preActions>

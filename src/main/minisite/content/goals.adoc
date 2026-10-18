@@ -1,0 +1,47 @@
+= Goals
+:minisite-index: 150
+:minisite-index-title: Goals
+:minisite-index-icon: list
+:minisite-index-description: All hop-maven-plugin goals at a glance, grouped by what they do.
+
+This page groups the plugin goals by concern. The authoritative, per-goal documentation (parameters,
+defaults, Maven properties, CLI invocation) is generated from `plugin.xml` and available in the
+xref:mojo/hop-maven-plugin.adoc[goal reference index].
+
+== Render diagrams
+
+xref:mojo/render.adoc[hop:render] - renders Apache Hop pipelines (`.hpl`) and workflows (`.hwf`) as
+SVG or Mermaid diagrams, headlessly, honoring include/exclude patterns and the project metadata.
+
+== Generate documentation
+
+xref:mojo/generate-doc.adoc[hop:generate-doc] - produces a documentation page per Hop file (overview,
+parameters, steps and flow), an index derived from the Hop files themselves, optional image rendering
+and an LLM-friendly Markdown + `llms.txt` mirror.
+
+== Assemble a distribution
+
+xref:mojo/build.adoc[hop:build] - downloads or resolves a Hop client zip, unzips it safely, enriches it
+with JDBC drivers, libs, javaagents, custom transforms, marketplace plugins and jar overrides, merges a
+`baseDirectory` on top and packages the result as a zip (optionally attached to the build).
+
+== Execute a pipeline or workflow
+
+xref:mojo/run.adoc[hop:run] - resolves a distribution, merges a repository folder on top and runs a
+pipeline or workflow via `hop-run.sh`/`hop-run.bat`.
+
+== Operate the Hop server
+
+xref:mojo/server.adoc[hop:server] - launches the Hop server in the background; stop it with
+xref:mojo/server-stop.adoc[hop:server-stop], which sends the authenticated `/shutdown` request.
+
+== Wrap the Hop CLI launchers
+
+xref:mojo/encrypt.adoc[hop:encrypt] - runs `hop-encrypt.sh`/`hop-encrypt.bat` to (de)crypt a password
+string. xref:mojo/gui.adoc[hop:gui] - launches the Hop GUI (`hop-gui.sh`/`hop-gui.bat`) for a resolved
+distribution.
+
+== Next steps
+
+See xref:usage.adoc[Usage] for wiring and build integration patterns, and the
+xref:mojo/hop-maven-plugin.adoc[goal reference index] for each goal's exact parameters.
