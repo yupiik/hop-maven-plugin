@@ -104,48 +104,10 @@ public class HopPluginRegistrar {
                               final Path base,
                               final PluginRegistry registry,
                               final HopPluginArtifactMapper mapper,
-                              final String defaultVersion) {
-        this(system, session, repositories, base, registry, mapper, defaultVersion, 1,
-                providedJarNames(HopPluginRegistrar.class), ignored -> {
-                });
-    }
-
-    public HopPluginRegistrar(final RepositorySystem system,
-                              final RepositorySystemSession session,
-                              final List<RemoteRepository> repositories,
-                              final Path base,
-                              final PluginRegistry registry,
-                              final HopPluginArtifactMapper mapper,
-                              final String defaultVersion,
-                              final int resolutionThreads) {
-        this(system, session, repositories, base, registry, mapper, defaultVersion, resolutionThreads,
-                providedJarNames(HopPluginRegistrar.class), ignored -> {
-                });
-    }
-
-    public HopPluginRegistrar(final RepositorySystem system,
-                              final RepositorySystemSession session,
-                              final List<RemoteRepository> repositories,
-                              final Path base,
-                              final PluginRegistry registry,
-                              final HopPluginArtifactMapper mapper,
                               final String defaultVersion,
                               final int resolutionThreads,
+                              final Set<String> providedJarNames,
                               final Consumer<String> debugLog) {
-        this(system, session, repositories, base, registry, mapper, defaultVersion, resolutionThreads,
-                providedJarNames(HopPluginRegistrar.class), debugLog);
-    }
-
-    HopPluginRegistrar(final RepositorySystem system,
-                       final RepositorySystemSession session,
-                       final List<RemoteRepository> repositories,
-                       final Path base,
-                       final PluginRegistry registry,
-                       final HopPluginArtifactMapper mapper,
-                       final String defaultVersion,
-                       final int resolutionThreads,
-                       final Set<String> providedJarNames,
-                       final Consumer<String> debugLog) {
         this.system = system;
         this.session = session;
         this.repositories = repositories;
@@ -154,7 +116,7 @@ public class HopPluginRegistrar {
         this.mapper = mapper;
         this.defaultVersion = defaultVersion == null || defaultVersion.isBlank() ? null : defaultVersion.trim();
         this.resolutionThreads = Math.max(1, resolutionThreads);
-        this.providedJarNames = providedJarNames;
+        this.providedJarNames = providedJarNames == null ? providedJarNames(HopPluginRegistrar.class) : providedJarNames;
         this.debugLog = debugLog == null ? ignored -> {
         } : debugLog;
     }

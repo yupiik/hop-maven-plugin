@@ -43,7 +43,8 @@ class DocRendererTest {
     @Test
     void asciidocPageMatchesExpectedSectionLayout() {
         final var visitor =
-                new AsciidocDocVisitor(true, true, true, true, true);
+                new AsciidocDocVisitor(true, true, true, true, true, "", "2,2,5", DocTitles.defaults(),
+                        "Parameter|Default|Description", "empty", "", "", null, null, null, null);
         final var sections = visitor.extract(subject, new Enrichment());
         final var out = new StringWriter();
         try {
@@ -71,7 +72,8 @@ class DocRendererTest {
         enrichment.setOverview("The custom one-line role.");
         enrichment.setScript("hop-run.sh -f T_SYNC_LOAD.hpl -r local");
         enrichment.setDiagramReference("diagrams/custom.svg");
-        final var visitor = new AsciidocDocVisitor(true, false, false, true, true);
+        final var visitor = new AsciidocDocVisitor(true, false, false, true, true, "", "2,2,5",
+                DocTitles.defaults(), "Parameter|Default|Description", "empty", "", "", null, null, null, null);
         final var sections = visitor.extract(subject, enrichment);
         final var out = new StringWriter();
         try {
@@ -111,7 +113,8 @@ class DocRendererTest {
         final var index = new IndexModel("Pipeline/Workflows", "Docs.", "fas fa-project-diagram", 15, of(
                 new IndexModel.Entry("J_SYNC", DocSubject.Kind.WORKFLOW, "J_SYNC.hwf", "Orchestrator.", "Runs the loop.", null),
                 new IndexModel.Entry("T_SYNC_LOAD", DocSubject.Kind.PIPELINE, "T_SYNC_LOAD.hpl", "Loads the partition.", null, null)));
-        final var visitor = new AsciidocDocVisitor(true, true, true, true, true);
+        final var visitor = new AsciidocDocVisitor(true, true, true, true, true, "", "2,2,5",
+                DocTitles.defaults(), "Parameter|Default|Description", "empty", "", "", null, null, null, null);
         final var out = new StringWriter();
         try {
             visitor.renderIndex(index, out);

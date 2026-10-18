@@ -299,7 +299,7 @@ public abstract class BaseHopMojo extends AbstractMojo {
                         repositories, base, registry,
                         new io.yupiik.hop.maven.plugin.HopPluginArtifactMapper(transform2ArtifactMapping,
                                 action2ArtifactMapping, getLog()::debug), version,
-                        resolutionThreads, getLog()::debug);
+                        resolutionThreads, null, getLog()::debug);
         try {
             final var staged =
                     registrar.resolveAndStage(toResolveTransforms, toResolveActions, Set.of(), Set.of());

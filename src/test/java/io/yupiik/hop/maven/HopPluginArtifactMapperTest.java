@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HopPluginArtifactMapperTest {
 
-    private final HopPluginArtifactMapper mapper = new HopPluginArtifactMapper(Map.of(), Map.of());
+    private final HopPluginArtifactMapper mapper = new HopPluginArtifactMapper(Map.of(), Map.of(), null);
 
     @Test
     void transformIdFollowingConventionMapsToLowercaseArtifact() {
@@ -67,7 +67,7 @@ class HopPluginArtifactMapperTest {
     @Test
     void userTransformOverrideWinsOverBuiltInTableAndConvention() {
         final var overridden =
-                new HopPluginArtifactMapper(Map.of("DataGrid", "com.acme:custom-datagrid"), Map.of());
+                new HopPluginArtifactMapper(Map.of("DataGrid", "com.acme:custom-datagrid"), Map.of(), null);
         assertEquals("com.acme:custom-datagrid", overridden.transformArtifactId("DataGrid"),
                 "an explicit transform2ArtifactMapping entry must replace the default mapping");
     }
@@ -75,7 +75,7 @@ class HopPluginArtifactMapperTest {
     @Test
     void userActionOverrideWinsOverBuiltInTableAndConvention() {
         final var overridden =
-                new HopPluginArtifactMapper(Map.of(), Map.of("WRITE_TO_LOG", "com.acme:log-action"));
+                new HopPluginArtifactMapper(Map.of(), Map.of("WRITE_TO_LOG", "com.acme:log-action"), null);
         assertEquals("com.acme:log-action", overridden.actionArtifactId("WRITE_TO_LOG"),
                 "an explicit action2ArtifactMapping entry must replace the default mapping");
     }
@@ -83,7 +83,7 @@ class HopPluginArtifactMapperTest {
     @Test
     void overridesDoNotLeakToOtherPlugins() {
         final var overridden =
-                new HopPluginArtifactMapper(Map.of("DataGrid", "com.acme:custom-datagrid"), Map.of());
+                new HopPluginArtifactMapper(Map.of("DataGrid", "com.acme:custom-datagrid"), Map.of(), null);
         assertNotEquals("com.acme:custom-datagrid", overridden.transformArtifactId("CSVInput"),
                 "an override for one plugin id must not affect the others");
         assertEquals("hop-transform-textfile", overridden.transformArtifactId("CSVInput"),

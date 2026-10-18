@@ -204,7 +204,7 @@ public class BuildMojo extends BaseHopMojo {
      * may need more than the default.
      */
     @Parameter(property = "hop.build.downloadTimeoutMinutes", defaultValue = "15")
-    protected long downloadTimeoutMinutes = 15;
+    protected long downloadTimeoutMinutes;
 
     @Inject
     protected MavenProjectHelper projectHelper;

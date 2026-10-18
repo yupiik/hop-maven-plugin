@@ -79,7 +79,7 @@ public class ServerStopMojo extends BaseHopMojo {
      * How long to wait for the server port to free up after the shutdown request.
      */
     @Parameter(property = "hop.server.stop.timeoutMs", defaultValue = "30000")
-    protected long shutdownTimeoutMs = 30_000;
+    protected long shutdownTimeoutMs;
 
     @java.lang.Override
     protected void process(final java.util.List<Path> files, final Path source,

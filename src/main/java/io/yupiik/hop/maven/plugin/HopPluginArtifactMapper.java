@@ -171,13 +171,6 @@ public class HopPluginArtifactMapper {
     private final Consumer<String> debugLog;
 
     public HopPluginArtifactMapper(final Map<String, String> transform2ArtifactMapping,
-                                   final Map<String, String> action2ArtifactMapping) {
-        this(transform2ArtifactMapping, action2ArtifactMapping, ignored -> {
-            // no-op
-        });
-    }
-
-    public HopPluginArtifactMapper(final Map<String, String> transform2ArtifactMapping,
                                    final Map<String, String> action2ArtifactMapping,
                                    final Consumer<String> debugLog) {
         this.transformOverrides = emptyIfNull(transform2ArtifactMapping);

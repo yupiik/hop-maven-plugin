@@ -52,28 +52,6 @@ public class AsciidocDocVisitor extends DocVisitor {
     private final String indexPrevLabel, indexPrevLink, indexNextLabel, indexNextLink;
 
     public AsciidocDocVisitor(final boolean configuration, final boolean steps,
-                              final boolean flow, final boolean script, final boolean diagram) {
-        this(configuration, steps, flow, script, diagram, "", "2,2,5", DocTitles.defaults(),
-                "Parameter|Default|Description", "empty", "", "", null, null, null, null);
-    }
-
-    public AsciidocDocVisitor(final boolean configuration, final boolean steps,
-                              final boolean flow, final boolean script, final boolean diagram,
-                              final String headerExtra, final String configCols) {
-        this(configuration, steps, flow, script, diagram, headerExtra, configCols, DocTitles.defaults(),
-                "Parameter|Default|Description", "empty", "", "", null, null, null, null);
-    }
-
-    public AsciidocDocVisitor(final boolean configuration, final boolean steps,
-                              final boolean flow, final boolean script, final boolean diagram,
-                              final String headerExtra, final String configCols, final DocTitles titles,
-                              final String configHeaders, final String emptyDefaultText,
-                              final String indexIntro, final String indexFooter) {
-        this(configuration, steps, flow, script, diagram, headerExtra, configCols, titles,
-                configHeaders, emptyDefaultText, indexIntro, indexFooter, null, null, null, null);
-    }
-
-    public AsciidocDocVisitor(final boolean configuration, final boolean steps,
                               final boolean flow, final boolean script, final boolean diagram,
                               final String headerExtra, final String configCols, final DocTitles titles,
                               final String configHeaders, final String emptyDefaultText,

@@ -63,7 +63,7 @@ class DistributionResolverTest {
             final var port = server.getAddress().getPort();
             final var resolver = new DistributionResolver(
                     newResolver(tmp.resolve("repo-1")), null, "2.19.0", null, null, null, tmp, ignored -> {
-            }, null);
+            }, null, true, java.time.Duration.ofMinutes(15));
             final var target = resolver.resolve("http://127.0.0.1:" + port + "/hop/${version}/apache-hop-client-${version}.zip");
             assertTrue(Files.isRegularFile(target), "archive must be downloaded");
             assertTrue(requestedPath.get().contains("/hop/2.19.0/apache-hop-client-2.19.0.zip"),
@@ -110,7 +110,7 @@ class DistributionResolverTest {
             final var url = "http://127.0.0.1:" + port + "/hop/2.19.0/apache-hop-client-2.19.0.zip";
             final var resolver = new DistributionResolver(
                     artifactResolver, null, null, null, null, null, tmp, ignored -> {
-            }, null);
+            }, null, true, java.time.Duration.ofMinutes(15));
             assertNotNull(resolver.resolve(url), "first call must download");
             assertEquals(1, hits.get(), "first call must hit the network exactly once");
             final var cached = resolver.resolve(url);
@@ -140,7 +140,7 @@ class DistributionResolverTest {
             final var url = "http://127.0.0.1:" + port + "/hop/2.19.0/apache-hop-client-2.19.0.zip";
             final var resolver = new DistributionResolver(
                     artifactResolver, null, null, null, null, null, tmp, ignored -> {
-            }, null, false);
+            }, null, false, java.time.Duration.ofMinutes(15));
             resolver.resolve(url);
             resolver.resolve(url);
             assertEquals(2, hits.get(), "with caching disabled every call must download");

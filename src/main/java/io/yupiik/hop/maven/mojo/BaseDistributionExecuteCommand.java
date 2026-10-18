@@ -83,7 +83,7 @@ public abstract class BaseDistributionExecuteCommand extends BuildMojo {
      * Fail the build when the launched process exits with a non-zero code (only when waiting).
      */
     @Parameter(property = "hop.run.failOnError", defaultValue = "true")
-    protected boolean failOnError = true;
+    protected boolean failOnError;
 
     /**
      * @return the default wait behaviour for this goal when {@link #waitFor} is not explicit.

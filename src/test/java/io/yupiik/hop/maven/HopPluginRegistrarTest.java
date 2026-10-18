@@ -86,8 +86,9 @@ class HopPluginRegistrarTest {
         final var registrar = new HopPluginRegistrar(
                 system, session, List.of(remote), pluginsBase, registry,
                 new HopPluginArtifactMapper(
-                        Map.of("FakeTransform", "org.apache.hop:hop-transform-fake:" + VERSION), Map.of()),
-                defaultVersion);
+                        Map.of("FakeTransform", "org.apache.hop:hop-transform-fake:" + VERSION), Map.of(), null),
+                defaultVersion, 1, Set.of(), ignored -> {
+                });
 
         final var staged = registrar.resolveAndStage(
                 Set.of("FakeTransform"), Set.of(), Set.of(), Set.of());

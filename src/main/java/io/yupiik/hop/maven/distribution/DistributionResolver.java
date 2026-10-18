@@ -61,33 +61,6 @@ public class DistributionResolver {
                                 final String authorizationHeaderName,
                                 final Path workdir,
                                 final Consumer<String> info,
-                                final java.util.function.Function<String, String> decipher) {
-        this(artifactResolver, settings, hopVersion, username, password, authorizationHeaderName, workdir, info,
-                decipher, true, Duration.ofMinutes(15));
-    }
-
-    public DistributionResolver(final ArtifactResolver artifactResolver,
-                                final Settings settings,
-                                final String hopVersion,
-                                final String username,
-                                final String password,
-                                final String authorizationHeaderName,
-                                final Path workdir,
-                                final Consumer<String> info,
-                                final java.util.function.Function<String, String> decipher,
-                                final boolean cacheDownload) {
-        this(artifactResolver, settings, hopVersion, username, password, authorizationHeaderName, workdir, info,
-                decipher, cacheDownload, Duration.ofMinutes(15));
-    }
-
-    public DistributionResolver(final ArtifactResolver artifactResolver,
-                                final Settings settings,
-                                final String hopVersion,
-                                final String username,
-                                final String password,
-                                final String authorizationHeaderName,
-                                final Path workdir,
-                                final Consumer<String> info,
                                 final java.util.function.Function<String, String> decipher,
                                 final boolean cacheDownload,
                                 final Duration downloadTimeout) {
@@ -102,7 +75,7 @@ public class DistributionResolver {
         } : info;
         this.decipher = decipher;
         this.cacheDownload = cacheDownload;
-        this.downloadTimeout = downloadTimeout;
+        this.downloadTimeout = downloadTimeout == null ? Duration.ofMinutes(15) : downloadTimeout;
     }
 
     /**
