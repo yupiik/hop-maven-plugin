@@ -1,18 +1,17 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance
+ * Copyright (c) 2026 - Yupiik SAS - https://yupiik.io/
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package io.yupiik.hop.maven.distribution;
 
@@ -53,17 +52,18 @@ public class DistributionResolver {
     private final boolean cacheDownload;
     private final Duration downloadTimeout;
 
-    public DistributionResolver(final ArtifactResolver artifactResolver,
-                                final Settings settings,
-                                final String hopVersion,
-                                final String username,
-                                final String password,
-                                final String authorizationHeaderName,
-                                final Path workdir,
-                                final Consumer<String> info,
-                                final java.util.function.Function<String, String> decipher,
-                                final boolean cacheDownload,
-                                final Duration downloadTimeout) {
+    public DistributionResolver(
+            final ArtifactResolver artifactResolver,
+            final Settings settings,
+            final String hopVersion,
+            final String username,
+            final String password,
+            final String authorizationHeaderName,
+            final Path workdir,
+            final Consumer<String> info,
+            final java.util.function.Function<String, String> decipher,
+            final boolean cacheDownload,
+            final Duration downloadTimeout) {
         this.artifactResolver = artifactResolver;
         this.settings = settings;
         this.hopVersion = hopVersion;
@@ -71,8 +71,7 @@ public class DistributionResolver {
         this.password = password;
         this.authorizationHeaderName = authorizationHeaderName;
         this.workdir = workdir;
-        this.info = info == null ? ignored -> {
-        } : info;
+        this.info = info == null ? ignored -> {} : info;
         this.decipher = decipher;
         this.cacheDownload = cacheDownload;
         this.downloadTimeout = downloadTimeout == null ? Duration.ofMinutes(15) : downloadTimeout;
@@ -130,17 +129,15 @@ public class DistributionResolver {
         if (!("http".equals(scheme) || "https".equals(scheme))) {
             throw new IOException("Distribution URL must be http(s): " + url);
         }
-        final var auth = ServerAuthHeader.forUrl(uri, settings, username, password,
-                authorizationHeaderName, decipher);
+        final var auth = ServerAuthHeader.forUrl(uri, settings, username, password, authorizationHeaderName, decipher);
         final var target = workdir.resolve(defaultZipName(url));
         info.accept("Downloading " + url + (auth != null ? " with credentials for " + uri.getHost() : ""));
         try (final HttpClient client = HttpClient.newBuilder()
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .connectTimeout(Duration.ofSeconds(30))
                 .build()) {
-            final var request = HttpRequest.newBuilder(uri)
-                    .timeout(downloadTimeout)
-                    .GET();
+            final var request =
+                    HttpRequest.newBuilder(uri).timeout(downloadTimeout).GET();
             if (auth != null) {
                 request.header(auth.name(), auth.value());
             }
@@ -175,9 +172,8 @@ public class DistributionResolver {
      */
     static Coordinates cacheCoordinates(final String url) {
         final var filename = url.substring(url.lastIndexOf('/') + 1);
-        final var withoutExt = filename.endsWith(".zip")
-                ? filename.substring(0, filename.length() - ".zip".length())
-                : filename;
+        final var withoutExt =
+                filename.endsWith(".zip") ? filename.substring(0, filename.length() - ".zip".length()) : filename;
         final String version;
         if (withoutExt.startsWith("apache-hop-client-")) {
             version = withoutExt.substring("apache-hop-client-".length());

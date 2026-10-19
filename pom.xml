@@ -12,6 +12,10 @@
   <url>https://github.com/yupiik/hop-maven-plugin</url>
 
   <inceptionYear>2026</inceptionYear>
+  <organization>
+    <name>Yupiik SAS</name>
+    <url>https://yupiik.io/</url>
+  </organization>
   <licenses>
     <license>
       <name>Apache License, Version 2.0</name>
@@ -208,6 +212,11 @@
           <artifactId>maven-dependency-plugin</artifactId>
           <version>3.9.0</version>
         </plugin>
+        <plugin>
+          <groupId>com.diffplug.spotless</groupId>
+          <artifactId>spotless-maven-plugin</artifactId>
+          <version>3.10.2</version>
+        </plugin>
       </plugins>
     </pluginManagement>
 
@@ -250,6 +259,73 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
       </plugin>
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <configuration>
+          <java>
+            <includes>
+              <include>src/main/java/**/*.java</include>
+              <include>src/test/java/**/*.java</include>
+            </includes>
+            <palantirJavaFormat>
+              <version>2.96.0</version>
+            </palantirJavaFormat>
+            <removeUnusedImports />
+            <licenseHeader>
+              <content><![CDATA[/*
+ * Copyright (c) ${project.inceptionYear} - ${project.organization.name} - ${project.organization.url}
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *  http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+]]></content>
+            </licenseHeader>
+            <excludes>
+              <exclude>**/generated/**</exclude>
+              <exclude>**/generated_*/**</exclude>
+            </excludes>
+          </java>
+          <pom>
+            <sortPom>
+              <expandEmptyElements>false</expandEmptyElements>
+              <spaceBeforeCloseEmptyElement>true</spaceBeforeCloseEmptyElement>
+            </sortPom>
+          </pom>
+          <formats>
+            <format>
+              <includes>
+                <include>.gitignore</include>
+                <include>.gitattributes</include>
+              </includes>
+              <trimTrailingWhitespace />
+              <endWithNewline />
+              <indent>
+                <tabs>true</tabs>
+                <spacesPerTab>4</spacesPerTab>
+              </indent>
+            </format>
+          </formats>
+        </configuration>
+        <executions>
+          <execution>
+            <id>spotless-check</id>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>compile</phase>
+          </execution>
+        </executions>
+      </plugin>
       <!-- extract the generic renderer icons (ui/images/*.svg) from the hop-ui jar at build
            time: SvgGc (hop-engine) loads them from the plugin classloader but neither
            hop-core nor hop-engine bundle them. This avoids maintaining 38 copied files
@@ -260,10 +336,10 @@
         <executions>
           <execution>
             <id>unpack-hop-ui-icons</id>
-            <phase>generate-resources</phase>
             <goals>
               <goal>unpack</goal>
             </goals>
+            <phase>generate-resources</phase>
             <configuration>
               <artifactItems>
                 <artifactItem>
@@ -283,13 +359,20 @@
       <plugin>
         <groupId>io.yupiik.maven</groupId>
         <artifactId>yupiik-tools-maven-plugin</artifactId>
+        <dependencies>
+          <dependency>
+            <groupId>io.yupiik.maven</groupId>
+            <artifactId>asciidoc-java</artifactId>
+            <version>${yupiik-tools.version}</version>
+          </dependency>
+        </dependencies>
         <executions>
           <execution>
             <id>minisite</id>
-            <phase>package</phase>
             <goals>
               <goal>minisite</goal>
             </goals>
+            <phase>package</phase>
             <configuration>
               <source>${project.basedir}/src/main/minisite</source>
               <target>${project.build.directory}/hop-maven-plugin</target>
@@ -298,9 +381,7 @@
               <indexText>Hop Maven Plugin</indexText>
               <indexSubTitle>Maven goals to render, document, build, run and manage Apache Hop projects.</indexSubTitle>
               <preferYupiikAsciidoc>true</preferYupiikAsciidoc>
-              <customHead>
-                <![CDATA[<style>dt.hdlist1 { font-weight: bold; }</style>]]>
-              </customHead>
+              <customHead><![CDATA[<style>dt.hdlist1 { font-weight: bold; }</style>]]></customHead>
               <siteBase>https://yupiik.github.io/hop-maven-plugin</siteBase>
               <copyright>Copyright Yupiik - Licensed under the Apache Software License version 2.0</copyright>
               <preActions>
@@ -316,13 +397,6 @@
             </configuration>
           </execution>
         </executions>
-        <dependencies>
-          <dependency>
-            <groupId>io.yupiik.maven</groupId>
-            <artifactId>asciidoc-java</artifactId>
-            <version>${yupiik-tools.version}</version>
-          </dependency>
-        </dependencies>
       </plugin>
     </plugins>
   </build>

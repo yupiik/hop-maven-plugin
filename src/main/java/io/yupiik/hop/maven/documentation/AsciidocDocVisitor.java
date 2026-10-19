@@ -1,18 +1,17 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance
+ * Copyright (c) 2026 - Yupiik SAS - https://yupiik.io/
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package io.yupiik.hop.maven.documentation;
 
@@ -51,13 +50,23 @@ public class AsciidocDocVisitor extends DocVisitor {
     /** Index page prev/next navigation attributes (optional). */
     private final String indexPrevLabel, indexPrevLink, indexNextLabel, indexNextLink;
 
-    public AsciidocDocVisitor(final boolean configuration, final boolean steps,
-                              final boolean flow, final boolean script, final boolean diagram,
-                              final String headerExtra, final String configCols, final DocTitles titles,
-                              final String configHeaders, final String emptyDefaultText,
-                              final String indexIntro, final String indexFooter,
-                              final String indexPrevLabel, final String indexPrevLink,
-                              final String indexNextLabel, final String indexNextLink) {
+    public AsciidocDocVisitor(
+            final boolean configuration,
+            final boolean steps,
+            final boolean flow,
+            final boolean script,
+            final boolean diagram,
+            final String headerExtra,
+            final String configCols,
+            final DocTitles titles,
+            final String configHeaders,
+            final String emptyDefaultText,
+            final String indexIntro,
+            final String indexFooter,
+            final String indexPrevLabel,
+            final String indexPrevLink,
+            final String indexNextLabel,
+            final String indexNextLink) {
         super(configuration, steps, flow, script, diagram);
         this.headerExtra = headerExtra == null ? "" : headerExtra;
         this.configCols = configCols == null ? "2,2,5" : configCols;
@@ -73,8 +82,9 @@ public class AsciidocDocVisitor extends DocVisitor {
     }
 
     @Override
-    public void renderPage(final DocSubject subject, final DocSections sections, final PageHeaders headers,
-                           final Writer out) throws IOException {
+    public void renderPage(
+            final DocSubject subject, final DocSections sections, final PageHeaders headers, final Writer out)
+            throws IOException {
         out.write("= " + sections.title());
         out.write('\n');
         writeMinisiteHeaders(headers, out);
@@ -120,8 +130,8 @@ public class AsciidocDocVisitor extends DocVisitor {
         }
     }
 
-    private void writeSection(final DocSubject subject, final String pageTitle,
-                              final Section section, final Writer out) throws IOException {
+    private void writeSection(final DocSubject subject, final String pageTitle, final Section section, final Writer out)
+            throws IOException {
         if (section instanceof OverviewSection overview) {
             heading(out, titles.getOverview() == null ? overview.title() : titles.getOverview());
             out.write('\n');
@@ -237,8 +247,8 @@ public class AsciidocDocVisitor extends DocVisitor {
         }
     }
 
-    private void writeIndexTable(final Writer out, final java.util.List<IndexModel.Entry> entries,
-                                 final String column) throws IOException {
+    private void writeIndexTable(final Writer out, final java.util.List<IndexModel.Entry> entries, final String column)
+            throws IOException {
         out.write("[cols=\"2,5\",opts=\"headers\"]\n");
         out.write("|===\n");
         out.write("|" + column + "|Role\n");

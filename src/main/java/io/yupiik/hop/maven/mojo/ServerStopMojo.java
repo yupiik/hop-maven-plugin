@@ -1,18 +1,17 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance
+ * Copyright (c) 2026 - Yupiik SAS - https://yupiik.io/
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package io.yupiik.hop.maven.mojo;
 
@@ -47,7 +46,8 @@ public class ServerStopMojo extends BaseHopMojo {
      * Path to the {@code hop-server.xml} config of the running server (defaults to the exploded
      * distribution used by the {@code server} goal).
      */
-    @Parameter(property = "hop.server.stop.serverConfig",
+    @Parameter(
+            property = "hop.server.stop.serverConfig",
             defaultValue = "${project.build.directory}/hop-run/exploded/hop-server.xml")
     protected File serverConfig;
 
@@ -82,9 +82,11 @@ public class ServerStopMojo extends BaseHopMojo {
     protected long shutdownTimeoutMs;
 
     @java.lang.Override
-    protected void process(final java.util.List<Path> files, final Path source,
-                           final org.apache.hop.metadata.api.IHopMetadataProvider provider,
-                           final org.apache.hop.core.variables.Variables variables) {
+    protected void process(
+            final java.util.List<Path> files,
+            final Path source,
+            final org.apache.hop.metadata.api.IHopMetadataProvider provider,
+            final org.apache.hop.core.variables.Variables variables) {
         // no-op
     }
 
@@ -99,11 +101,10 @@ public class ServerStopMojo extends BaseHopMojo {
         final var host = host(config);
         final var port = port(config);
         if (host == null || host.isBlank() || port <= 0) {
-            throw new MojoFailureException("Cannot determine the Hop server host/port: read "
-                    + serverConfig + " or set hop.server.stop.host/hop.server.stop.port");
+            throw new MojoFailureException("Cannot determine the Hop server host/port: read " + serverConfig
+                    + " or set hop.server.stop.host/hop.server.stop.port");
         }
-        final var auth = (config != null && config.enabledAuth())
-                || (stopPassword != null && !stopPassword.isBlank());
+        final var auth = (config != null && config.enabledAuth()) || (stopPassword != null && !stopPassword.isBlank());
         getLog().info("Stopping Hop server at " + host + ":" + port + (auth ? " (basic auth)" : ""));
         try {
             sendShutdown(host, port, auth);
@@ -135,8 +136,8 @@ public class ServerStopMojo extends BaseHopMojo {
                     .timeout(Duration.ofSeconds(10))
                     .GET();
             if (auth) {
-                final var token = Base64.getEncoder().encodeToString(
-                        (stopUser + ":" + (stopPassword == null ? "" : stopPassword))
+                final var token = Base64.getEncoder()
+                        .encodeToString((stopUser + ":" + (stopPassword == null ? "" : stopPassword))
                                 .getBytes(java.nio.charset.StandardCharsets.UTF_8));
                 request.header("Authorization", "Basic " + token);
             }
@@ -170,8 +171,8 @@ public class ServerStopMojo extends BaseHopMojo {
                 return;
             }
         }
-        throw new IOException("Hop server at " + host + ":" + port + " is still up after "
-                + shutdownTimeoutMs + " ms; the shutdown may have failed");
+        throw new IOException("Hop server at " + host + ":" + port + " is still up after " + shutdownTimeoutMs
+                + " ms; the shutdown may have failed");
     }
 
     private static boolean isPortOpen(final String host, final int port) {

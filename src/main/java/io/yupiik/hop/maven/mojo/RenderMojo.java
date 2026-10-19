@@ -1,20 +1,21 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance
+ * Copyright (c) 2026 - Yupiik SAS - https://yupiik.io/
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package io.yupiik.hop.maven.mojo;
+
+import static java.util.Optional.ofNullable;
 
 import io.yupiik.hop.maven.render.DiagramExporter;
 import io.yupiik.hop.maven.render.Format;
@@ -27,9 +28,6 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
-
-import static java.util.Optional.ofNullable;
-import static java.util.Collections.emptyList;
 
 /**
  * Renders Apache Hop pipelines ({@code .hpl}) and workflows ({@code .hwf}) as diagrams.
@@ -79,12 +77,13 @@ public class RenderMojo extends BaseHopMojo {
     private final List<Format> effectiveFormats = new ArrayList<>();
 
     @Override
-    protected void process(final List<Path> files, final Path source,
-                           final IHopMetadataProvider provider, final Variables variables)
+    protected void process(
+            final List<Path> files, final Path source, final IHopMetadataProvider provider, final Variables variables)
             throws MojoExecutionException, MojoFailureException {
         final var target = toPath(targetFolder, "targetFolder");
 
-        effectiveFormats.addAll(ofNullable(formats).filter(list -> !list.isEmpty()).orElse(List.of(Format.SVG)));
+        effectiveFormats.addAll(
+                ofNullable(formats).filter(list -> !list.isEmpty()).orElse(List.of(Format.SVG)));
 
         final var exporter = new DiagramExporter(failOnMissing);
         final int[] rendered = {0};
@@ -95,8 +94,17 @@ public class RenderMojo extends BaseHopMojo {
                 final var subject = exporter.loadSubject(file, provider, variables);
                 exporter.checkMissingPlugins(file, subject);
                 for (final var format : effectiveFormats) {
-                    exporter.renderOne(file, rel, subject, format, target, variables, provider,
-                            magnification, includeNotes, getLog()::info);
+                    exporter.renderOne(
+                            file,
+                            rel,
+                            subject,
+                            format,
+                            target,
+                            variables,
+                            provider,
+                            magnification,
+                            includeNotes,
+                            getLog()::info);
                 }
                 rendered[0]++;
             } catch (final Throwable t) {
@@ -108,7 +116,7 @@ public class RenderMojo extends BaseHopMojo {
         if (failed[0] > 0) {
             throw new MojoFailureException("Failed to render " + failed[0] + " HOP file(s), see logs above");
         }
-        getLog().info("Rendered " + rendered[0] + " HOP file(s) to " + target + " in "
-                + effectiveFormats.size() + " format(s)");
+        getLog().info("Rendered " + rendered[0] + " HOP file(s) to " + target + " in " + effectiveFormats.size()
+                + " format(s)");
     }
 }

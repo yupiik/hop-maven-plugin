@@ -1,18 +1,17 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance
+ * Copyright (c) 2026 - Yupiik SAS - https://yupiik.io/
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package io.yupiik.hop.maven.resolve;
 
@@ -34,7 +33,6 @@ import org.eclipse.aether.resolution.ArtifactResolutionException;
 import org.eclipse.aether.resolution.ArtifactResult;
 import org.eclipse.aether.resolution.DependencyRequest;
 import org.eclipse.aether.resolution.DependencyResolutionException;
-import org.eclipse.aether.resolution.DependencyResult;
 
 /**
  * Thin Maven-free wrapper over the aether {@link RepositorySystem} resolving artifacts and,
@@ -50,8 +48,10 @@ public class ArtifactResolver {
     private final RepositorySystemSession session;
     private final List<RemoteRepository> repositories;
 
-    public ArtifactResolver(final RepositorySystem system, final RepositorySystemSession session,
-                            final List<RemoteRepository> repositories) {
+    public ArtifactResolver(
+            final RepositorySystem system,
+            final RepositorySystemSession session,
+            final List<RemoteRepository> repositories) {
         if (system == null) {
             throw new IllegalStateException("The Maven resolver (RepositorySystem) is not available; "
                     + "make sure this mojo runs inside Maven");
@@ -114,8 +114,8 @@ public class ArtifactResolver {
     public void install(final Coordinates coordinates, final Path file) {
         final var artifact = coordinates.toArtifact("jar", "").setFile(file.toFile());
         final var request = new InstallRequest().addArtifact(artifact);
-        final var pom = new DefaultArtifact(
-                coordinates.groupId(), coordinates.artifactId(), "pom", coordinates.version());
+        final var pom =
+                new DefaultArtifact(coordinates.groupId(), coordinates.artifactId(), "pom", coordinates.version());
         final var pomFile = generatePom(coordinates, pom);
         request.addArtifact(pom.setFile(pomFile.toFile()));
         try {
@@ -166,8 +166,8 @@ public class ArtifactResolver {
                     .map(java.io.File::toPath)
                     .toList();
         } catch (final DependencyResolutionException e) {
-            throw new IllegalStateException("Unable to resolve dependencies of " + coordinates + ": "
-                    + e.getMessage(), e);
+            throw new IllegalStateException(
+                    "Unable to resolve dependencies of " + coordinates + ": " + e.getMessage(), e);
         }
     }
 }

@@ -1,18 +1,17 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance
+ * Copyright (c) 2026 - Yupiik SAS - https://yupiik.io/
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package io.yupiik.hop.maven.documentation;
 
@@ -32,14 +31,19 @@ import java.io.Writer;
  */
 public class MarkdownDocVisitor extends DocVisitor {
 
-    public MarkdownDocVisitor(final boolean configuration, final boolean steps,
-                              final boolean flow, final boolean script, final boolean diagram) {
+    public MarkdownDocVisitor(
+            final boolean configuration,
+            final boolean steps,
+            final boolean flow,
+            final boolean script,
+            final boolean diagram) {
         super(configuration, steps, flow, script, diagram);
     }
 
     @Override
-    public void renderPage(final DocSubject subject, final DocSections sections, final PageHeaders headers,
-                           final Writer out) throws IOException {
+    public void renderPage(
+            final DocSubject subject, final DocSections sections, final PageHeaders headers, final Writer out)
+            throws IOException {
         out.write("# " + sections.title());
         out.write("\n\n");
         for (final var section : sections.sections()) {
@@ -47,8 +51,7 @@ public class MarkdownDocVisitor extends DocVisitor {
         }
     }
 
-    private void writeSection(final DocSubject subject, final Section section, final Writer out)
-            throws IOException {
+    private void writeSection(final DocSubject subject, final Section section, final Writer out) throws IOException {
         if (section instanceof OverviewSection overview) {
             out.write("## " + overview.title() + "\n\n");
             out.write(overview.text());
@@ -59,8 +62,11 @@ public class MarkdownDocVisitor extends DocVisitor {
             out.write("| --- | --- | --- |\n");
             for (final var parameter : configuration.parameters()) {
                 out.write("| `" + mdEscape(parameter.name()) + "` | "
-                        + (parameter.defaultValue() == null || parameter.defaultValue().isBlank()
-                        ? "empty" : "`" + mdEscape(parameter.defaultValue()) + "`") + " | "
+                        + (parameter.defaultValue() == null
+                                        || parameter.defaultValue().isBlank()
+                                ? "empty"
+                                : "`" + mdEscape(parameter.defaultValue()) + "`")
+                        + " | "
                         + mdEscape(parameter.description()) + " |\n");
             }
             out.write('\n');
@@ -113,8 +119,8 @@ public class MarkdownDocVisitor extends DocVisitor {
         writeIndexTable(out, index.pipelines(), "Pipeline");
     }
 
-    private void writeIndexTable(final Writer out, final java.util.List<IndexModel.Entry> entries,
-                                 final String column) throws IOException {
+    private void writeIndexTable(final Writer out, final java.util.List<IndexModel.Entry> entries, final String column)
+            throws IOException {
         out.write("| " + column + " | Role |\n");
         out.write("| --- | --- |\n");
         for (final var entry : entries) {

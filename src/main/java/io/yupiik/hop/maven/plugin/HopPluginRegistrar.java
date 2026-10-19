@@ -1,23 +1,21 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance
+ * Copyright (c) 2026 - Yupiik SAS - https://yupiik.io/
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package io.yupiik.hop.maven.plugin;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
@@ -35,7 +33,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.jar.JarFile;
-import java.util.zip.ZipEntry;
 import org.apache.hop.core.annotations.Action;
 import org.apache.hop.core.annotations.Transform;
 import org.apache.hop.core.plugins.ActionPluginType;
@@ -44,17 +41,14 @@ import org.apache.hop.core.plugins.PluginRegistry;
 import org.apache.hop.core.plugins.TransformPluginType;
 import org.eclipse.aether.RepositorySystem;
 import org.eclipse.aether.RepositorySystemSession;
-import org.eclipse.aether.artifact.Artifact;
 import org.eclipse.aether.artifact.DefaultArtifact;
 import org.eclipse.aether.collection.CollectRequest;
 import org.eclipse.aether.graph.Dependency;
 import org.eclipse.aether.repository.RemoteRepository;
 import org.eclipse.aether.resolution.ArtifactRequest;
 import org.eclipse.aether.resolution.ArtifactResolutionException;
-import org.eclipse.aether.resolution.ArtifactResult;
 import org.eclipse.aether.resolution.DependencyRequest;
 import org.eclipse.aether.resolution.DependencyResolutionException;
-import org.jboss.jandex.AnnotationInstance;
 import org.jboss.jandex.DotName;
 import org.jboss.jandex.Index;
 import org.jboss.jandex.IndexReader;
@@ -98,16 +92,17 @@ public class HopPluginRegistrar {
     /** file names (e.g. hop-core-2.20.0.jar) already provided by the plugin realm. */
     private final Set<String> providedJarNames;
 
-    public HopPluginRegistrar(final RepositorySystem system,
-                              final RepositorySystemSession session,
-                              final List<RemoteRepository> repositories,
-                              final Path base,
-                              final PluginRegistry registry,
-                              final HopPluginArtifactMapper mapper,
-                              final String defaultVersion,
-                              final int resolutionThreads,
-                              final Set<String> providedJarNames,
-                              final Consumer<String> debugLog) {
+    public HopPluginRegistrar(
+            final RepositorySystem system,
+            final RepositorySystemSession session,
+            final List<RemoteRepository> repositories,
+            final Path base,
+            final PluginRegistry registry,
+            final HopPluginArtifactMapper mapper,
+            final String defaultVersion,
+            final int resolutionThreads,
+            final Set<String> providedJarNames,
+            final Consumer<String> debugLog) {
         this.system = system;
         this.session = session;
         this.repositories = repositories;
@@ -116,9 +111,9 @@ public class HopPluginRegistrar {
         this.mapper = mapper;
         this.defaultVersion = defaultVersion == null || defaultVersion.isBlank() ? null : defaultVersion.trim();
         this.resolutionThreads = Math.max(1, resolutionThreads);
-        this.providedJarNames = providedJarNames == null ? providedJarNames(HopPluginRegistrar.class) : providedJarNames;
-        this.debugLog = debugLog == null ? ignored -> {
-        } : debugLog;
+        this.providedJarNames =
+                providedJarNames == null ? providedJarNames(HopPluginRegistrar.class) : providedJarNames;
+        this.debugLog = debugLog == null ? ignored -> {} : debugLog;
     }
 
     /**
@@ -129,9 +124,11 @@ public class HopPluginRegistrar {
      * on Maven's {@code maven.artifact.threads}); staging is idempotent (temp file + atomic move)
      * so concurrent workers cannot observe partial files.
      */
-    public Staged resolveAndStage(final Set<String> transformIds, final Set<String> actionIds,
-                                  final Set<String> alreadyKnownTransformIds,
-                                  final Set<String> alreadyKnownActionIds) {
+    public Staged resolveAndStage(
+            final Set<String> transformIds,
+            final Set<String> actionIds,
+            final Set<String> alreadyKnownTransformIds,
+            final Set<String> alreadyKnownActionIds) {
         final List<ResolveTask> tasks = new ArrayList<>();
         for (final var id : transformIds) {
             if (alreadyKnownTransformIds.contains(id)) {
@@ -181,16 +178,15 @@ public class HopPluginRegistrar {
         return staged;
     }
 
-    private record ResolveTask(String pluginId, String artifact, boolean transform) {
-    }
+    private record ResolveTask(String pluginId, String artifact, boolean transform) {}
 
-    private void stage(final Staged staged, final String pluginId, final String artifactIdOrCoordinates,
-                       final boolean transform) {
+    private void stage(
+            final Staged staged, final String pluginId, final String artifactIdOrCoordinates, final boolean transform) {
         final var coordinates = Coordinates.of(artifactIdOrCoordinates, defaultVersion);
         final var dir = base.resolve(transform ? "transforms" : "actions").resolve(coordinates.artifactId());
         final var jar = dir.resolve(coordinates.jarName());
-        debugLog.accept("Resolution: " + (transform ? "transform" : "action") + " '" + pluginId
-                + "' -> '" + coordinates.coordinates() + "', staging dir '" + dir + "'");
+        debugLog.accept("Resolution: " + (transform ? "transform" : "action") + " '" + pluginId + "' -> '"
+                + coordinates.coordinates() + "', staging dir '" + dir + "'");
         try {
             if (!Files.exists(jar)) {
                 final var files = resolve(coordinates);
@@ -206,12 +202,13 @@ public class HopPluginRegistrar {
                 debugLog.accept("Resolution: staged '" + pluginId + "' from '" + jar + "'");
                 staged.staged.add(new StagedPlugin(pluginId, transform, jar));
             } else {
-                debugLog.accept("Resolution: missing '" + pluginId + "' (artifact '" + coordinates.coordinates() + "')");
+                debugLog.accept(
+                        "Resolution: missing '" + pluginId + "' (artifact '" + coordinates.coordinates() + "')");
                 staged.missing(pluginId, transform);
             }
         } catch (final DependencyResolutionException | ArtifactResolutionException e) {
-            debugLog.accept("Resolution: failed for '" + pluginId + "' (artifact '"
-                    + coordinates.coordinates() + "'): " + e.getMessage());
+            debugLog.accept("Resolution: failed for '" + pluginId + "' (artifact '" + coordinates.coordinates() + "'): "
+                    + e.getMessage());
             staged.missing(pluginId, transform);
         }
     }
@@ -228,17 +225,21 @@ public class HopPluginRegistrar {
         final Set<Path> seen = new HashSet<>();
 
         final var root = system.resolveArtifact(session, new ArtifactRequest(artifact, repositories, null));
-        if (!root.isMissing() && root.getArtifact() != null && root.getArtifact().getFile() != null) {
+        if (!root.isMissing()
+                && root.getArtifact() != null
+                && root.getArtifact().getFile() != null) {
             final var file = root.getArtifact().getFile().toPath().toAbsolutePath();
             debugLog.accept("Resolution: root artifact '" + coordinates.coordinates() + "' -> '" + file + "'");
             files.add(file);
             seen.add(file);
         }
 
-        final var request = new DependencyRequest(
-                new CollectRequest(new Dependency(artifact, "runtime"), repositories), null);
+        final var request =
+                new DependencyRequest(new CollectRequest(new Dependency(artifact, "runtime"), repositories), null);
         for (final var result : system.resolveDependencies(session, request).getArtifactResults()) {
-            if (result.isMissing() || result.getArtifact() == null || result.getArtifact().getFile() == null) {
+            if (result.isMissing()
+                    || result.getArtifact() == null
+                    || result.getArtifact().getFile() == null) {
                 continue;
             }
             final var file = result.getArtifact().getFile().toPath().toAbsolutePath();
@@ -263,7 +264,8 @@ public class HopPluginRegistrar {
             Files.createDirectories(dir.resolve("lib"));
             copyIfAbsent(files.get(0), dir.resolve(files.get(0).getFileName()));
             for (int i = 1; i < files.size(); i++) {
-                copyIfAbsent(files.get(i), dir.resolve("lib").resolve(files.get(i).getFileName()));
+                copyIfAbsent(
+                        files.get(i), dir.resolve("lib").resolve(files.get(i).getFileName()));
             }
         } catch (final IOException e) {
             throw new IllegalStateException("Unable to stage plugin artifacts in " + dir, e);
@@ -291,8 +293,7 @@ public class HopPluginRegistrar {
      */
     public void register(final Staged staged) {
         for (final var plugin : staged.staged) {
-            final var typeClass =
-                    plugin.transform ? TransformPluginType.class : ActionPluginType.class;
+            final var typeClass = plugin.transform ? TransformPluginType.class : ActionPluginType.class;
             if (registry.findPluginWithId(typeClass, plugin.pluginId) != null) {
                 debugLog.accept("Registration: '" + plugin.pluginId + "' already registered, skipping");
                 continue; // already registered by another mojo or by a plugin dependency
@@ -338,10 +339,10 @@ public class HopPluginRegistrar {
                 throw new IllegalStateException("Unable to list " + lib, e);
             }
         }
-        final var loader = new URLClassLoader(urls.toArray(new URL[0]), getClass().getClassLoader());
+        final var loader =
+                new URLClassLoader(urls.toArray(new URL[0]), getClass().getClassLoader());
 
-        final var annotationClass =
-                plugin.transform ? Transform.class : Action.class;
+        final var annotationClass = plugin.transform ? Transform.class : Action.class;
         // libraries drives the class loader Hop builds for the plugin instances at render time:
         // the plugin jar first, then the lib/ dependencies (canonical Hop layout).
         final List<String> libraries = new ArrayList<>();
@@ -358,7 +359,8 @@ public class HopPluginRegistrar {
         final var pluginUrl = toUrl(jar);
         for (final var className : classNames) {
             try {
-                registry.registerPluginClass(loader, libraries, pluginUrl, className, typeClass, annotationClass, false);
+                registry.registerPluginClass(
+                        loader, libraries, pluginUrl, className, typeClass, annotationClass, false);
                 debugLog.accept("Registration: registered '" + plugin.pluginId + "' with class '" + className
                         + "' (annotation " + annotationClass.getSimpleName() + ")");
             } catch (final Exception e) {
@@ -416,8 +418,7 @@ public class HopPluginRegistrar {
     }
 
     /** A plugin jar staged under the base folder, ready to be registered. */
-    public record StagedPlugin(String pluginId, boolean transform, Path jar) {
-    }
+    public record StagedPlugin(String pluginId, boolean transform, Path jar) {}
 
     /**
      * Normalized artifact coordinates: an {@code artifactId} alone becomes
@@ -436,14 +437,14 @@ public class HopPluginRegistrar {
             }
             if (value.indexOf(':') > 0) {
                 if (version == null || version.isEmpty()) {
-                    throw new IllegalArgumentException("Cannot determine version for " + value
-                            + "; set the autoResolveVersion parameter");
+                    throw new IllegalArgumentException(
+                            "Cannot determine version for " + value + "; set the autoResolveVersion parameter");
                 }
                 return new Coordinates(value + ":" + version);
             }
             if (version == null || version.isEmpty()) {
-                throw new IllegalArgumentException("Cannot determine version for " + value
-                        + "; set the autoResolveVersion parameter");
+                throw new IllegalArgumentException(
+                        "Cannot determine version for " + value + "; set the autoResolveVersion parameter");
             }
             return new Coordinates("org.apache.hop:" + value + ":" + version);
         }

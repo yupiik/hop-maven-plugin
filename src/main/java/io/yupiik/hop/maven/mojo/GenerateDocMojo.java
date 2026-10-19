@@ -1,24 +1,25 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance
+ * Copyright (c) 2026 - Yupiik SAS - https://yupiik.io/
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package io.yupiik.hop.maven.mojo;
 
+import static java.util.Collections.emptyList;
+
 import io.yupiik.hop.maven.documentation.AsciidocDocVisitor;
-import io.yupiik.hop.maven.documentation.DocSections;
 import io.yupiik.hop.maven.documentation.DocFileLoader;
+import io.yupiik.hop.maven.documentation.DocSections;
 import io.yupiik.hop.maven.documentation.DocSubject;
 import io.yupiik.hop.maven.documentation.DocSubjectFactory;
 import io.yupiik.hop.maven.documentation.DocTitles;
@@ -39,8 +40,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
-import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import org.apache.hop.core.variables.Variables;
 import org.apache.hop.metadata.api.IHopMetadataProvider;
@@ -48,8 +47,6 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
-
-import static java.util.Collections.emptyList;
 
 /**
  * Generates documentation pages for Apache Hop pipelines ({@code .hpl}) and workflows
@@ -71,8 +68,7 @@ public class GenerateDocMojo extends BaseHopMojo {
      * Folder where the generated documentation is written. The {@code index} page and one page per
      * Hop file land here (optionally preserving the source sub-folders, see {@link #preserveStructure}).
      */
-    @Parameter(property = "hop.doc.outputDirectory",
-            defaultValue = "${project.basedir}/src/main/minisite/content/hop")
+    @Parameter(property = "hop.doc.outputDirectory", defaultValue = "${project.basedir}/src/main/minisite/content/hop")
     protected java.io.File outputDirectory;
 
     /**
@@ -100,8 +96,7 @@ public class GenerateDocMojo extends BaseHopMojo {
      * by {@link #diagramReferencePrefix}. Defaults to {@code src/main/minisite/images/diagrams}, the
      * conventional yupiik minisite images location.
      */
-    @Parameter(property = "hop.doc.imageFolder",
-            defaultValue = "${project.basedir}/src/main/minisite/images/diagrams")
+    @Parameter(property = "hop.doc.imageFolder", defaultValue = "${project.basedir}/src/main/minisite/images/diagrams")
     protected java.io.File imageFolder;
 
     /**
@@ -194,8 +189,7 @@ public class GenerateDocMojo extends BaseHopMojo {
     /** Folder where a per-artefact documentation file ({@code <pipelineOrWorkflowName>.adoc}) is read
      * by convention, supplying the enrichments (overview, script, index role/order, ...) for each
      * pipeline/workflow. Falls back to inline {@link #enrichments} when a file is absent. */
-    @Parameter(property = "hop.doc.enrichmentLocation",
-            defaultValue = "${project.basedir}/src/main/hop/documentation")
+    @Parameter(property = "hop.doc.enrichmentLocation", defaultValue = "${project.basedir}/src/main/hop/documentation")
     protected java.io.File enrichmentLocation;
 
     /** Fail the build when a discovered pipeline/workflow has neither a documentation file in
@@ -240,8 +234,8 @@ public class GenerateDocMojo extends BaseHopMojo {
     private final DiagramExporter exporter = new DiagramExporter(false);
 
     @Override
-    protected void process(final List<Path> files, final Path source,
-                           final IHopMetadataProvider provider, final Variables variables)
+    protected void process(
+            final List<Path> files, final Path source, final IHopMetadataProvider provider, final Variables variables)
             throws MojoExecutionException, MojoFailureException {
         final var out = toPath(outputDirectory, "outputDirectory");
         final var images = includeImage ? toPath(imageFolder, "imageFolder") : null;
@@ -270,21 +264,25 @@ public class GenerateDocMojo extends BaseHopMojo {
                 }
                 subjects.add(new IndexedSubject(subject, loaded, enrichment));
             } catch (final Exception e) {
-                getLog().warn("Skipping " + file + ": " + e.getMessage() + " (" + e.getClass().getSimpleName() + ")");
+                getLog().warn("Skipping " + file + ": " + e.getMessage() + " ("
+                        + e.getClass().getSimpleName() + ")");
             }
         }
         if (failIfMissing && !missing.isEmpty()) {
-            throw new MojoFailureException("No documentation file found for " + missing.size() + " pipeline/workflow(s): "
-                    + missing + ". Add a '" + (enrichmentLocation == null
-                    ? "src/main/hop/documentation" : enrichmentLocation.toPath()) + "/<name>.adoc' file "
-                    + "or provide an inline <enrichments> override, or set failIfMissing=false.");
+            throw new MojoFailureException(
+                    "No documentation file found for " + missing.size() + " pipeline/workflow(s): "
+                            + missing + ". Add a '"
+                            + (enrichmentLocation == null ? "src/main/hop/documentation" : enrichmentLocation.toPath())
+                            + "/<name>.adoc' file "
+                            + "or provide an inline <enrichments> override, or set failIfMissing=false.");
         }
 
         // stable sort by enrichment order then by name
-        subjects.sort(Comparator
-                .comparing((IndexedSubject s) -> s.enrichment == null || s.enrichment.getIndexOrder() == null
-                        ? Integer.MAX_VALUE : s.enrichment.getIndexOrder())
-                .thenComparing(s -> s.subject.name()));
+        subjects.sort(
+                Comparator.comparing((IndexedSubject s) -> s.enrichment == null || s.enrichment.getIndexOrder() == null
+                                ? Integer.MAX_VALUE
+                                : s.enrichment.getIndexOrder())
+                        .thenComparing(s -> s.subject.name()));
 
         // write the documentation pages
         final var visitor = newVisitor();
@@ -306,15 +304,31 @@ public class GenerateDocMojo extends BaseHopMojo {
                 + (includeMd ? " + Markdown mirror/llms.txt" : ""));
     }
 
-    private void writePage(final IndexedSubject indexed, final DocVisitor visitor, final PageHeaders headers,
-                           final Path images, final Path source, final Variables variables,
-                           final IHopMetadataProvider provider, final Path out) throws MojoExecutionException {
+    private void writePage(
+            final IndexedSubject indexed,
+            final DocVisitor visitor,
+            final PageHeaders headers,
+            final Path images,
+            final Path source,
+            final Variables variables,
+            final IHopMetadataProvider provider,
+            final Path out)
+            throws MojoExecutionException {
         final var subject = indexed.subject;
         if (includeImage && images != null) {
             final var file = source.resolve(subject.relativePath().replace('\\', '/'));
             try {
-                exporter.renderOne(file, source.relativize(file), indexed.loaded, imageFormat, images,
-                        variables, provider, 1.0f, true, getLog()::info);
+                exporter.renderOne(
+                        file,
+                        source.relativize(file),
+                        indexed.loaded,
+                        imageFormat,
+                        images,
+                        variables,
+                        provider,
+                        1.0f,
+                        true,
+                        getLog()::info);
             } catch (final Throwable t) {
                 getLog().warn("Unable to render diagram for " + subject.name() + ": " + t.getMessage());
             }
@@ -374,8 +388,11 @@ public class GenerateDocMojo extends BaseHopMojo {
             throws MojoExecutionException {
         final var entries = new ArrayList<IndexModel.Entry>();
         for (final var indexed : subjects) {
-            entries.add(new IndexModel.Entry(indexed.subject.name(), indexed.subject.kind(),
-                    indexed.subject.relativePath(), indexed.subject.description(),
+            entries.add(new IndexModel.Entry(
+                    indexed.subject.name(),
+                    indexed.subject.kind(),
+                    indexed.subject.relativePath(),
+                    indexed.subject.description(),
                     indexed.enrichment == null ? null : indexed.enrichment.getIndexRole(),
                     indexed.enrichment == null ? null : indexed.enrichment.getIndexOrder()));
         }
@@ -393,19 +410,33 @@ public class GenerateDocMojo extends BaseHopMojo {
             throws MojoExecutionException {
         if (format != DocFormat.MD) {
             // when the primary format is Markdown the .md pages are already there; only mirror when not
-            final var adoc = new AsciidocDocVisitor(configuration, steps, flow, script, true,
-                    "", "", titles == null ? DocTitles.defaults() : titles, "", "", "", "", null, null, null, null);
+            final var adoc = new AsciidocDocVisitor(
+                    configuration,
+                    steps,
+                    flow,
+                    script,
+                    true,
+                    "",
+                    "",
+                    titles == null ? DocTitles.defaults() : titles,
+                    "",
+                    "",
+                    "",
+                    "",
+                    null,
+                    null,
+                    null,
+                    null);
             final var parser = new io.yupiik.asciidoc.parser.Parser();
-            final var resolver =
-                    io.yupiik.asciidoc.parser.resolver.ContentResolver.of(out);
+            final var resolver = io.yupiik.asciidoc.parser.resolver.ContentResolver.of(out);
             for (final var indexed : subjects) {
                 final var subject = indexed.subject;
                 final var target = pagePath(out, subject, "md");
                 final var sections = adoc.extract(subject, indexed.enrichment);
                 final var adocText = renderToString(adoc, subject, sections);
-                final var document = parser.parse(adocText, new io.yupiik.asciidoc.parser.Parser.ParserContext(resolver));
-                final var mdRenderer =
-                        new io.yupiik.asciidoc.renderer.markdown.GithubFlavoredMarkdownRenderer();
+                final var document =
+                        parser.parse(adocText, new io.yupiik.asciidoc.parser.Parser.ParserContext(resolver));
+                final var mdRenderer = new io.yupiik.asciidoc.renderer.markdown.GithubFlavoredMarkdownRenderer();
                 mdRenderer.visit(document);
                 final var md = mdRenderer.result();
                 try (final Writer writer = Files.newBufferedWriter(target, StandardCharsets.UTF_8)) {
@@ -418,8 +449,11 @@ public class GenerateDocMojo extends BaseHopMojo {
         }
         final var entries = new ArrayList<IndexModel.Entry>();
         for (final var indexed : subjects) {
-            entries.add(new IndexModel.Entry(indexed.subject.name(), indexed.subject.kind(),
-                    indexed.subject.relativePath(), indexed.subject.description(),
+            entries.add(new IndexModel.Entry(
+                    indexed.subject.name(),
+                    indexed.subject.kind(),
+                    indexed.subject.relativePath(),
+                    indexed.subject.description(),
                     indexed.enrichment == null ? null : indexed.enrichment.getIndexRole(),
                     indexed.enrichment == null ? null : indexed.enrichment.getIndexOrder()));
         }
@@ -438,9 +472,23 @@ public class GenerateDocMojo extends BaseHopMojo {
         if (format == DocFormat.MD) {
             return new MarkdownDocVisitor(configuration, steps, flow, script, diagram);
         }
-        return new AsciidocDocVisitor(configuration, steps, flow, script, diagram, adocHeader, configCols,
-                titles == null ? DocTitles.defaults() : titles, configHeaders, emptyDefaultText,
-                indexIntro, indexFooter, indexPrevLabel, indexPrevLink, indexNextLabel, indexNextLink);
+        return new AsciidocDocVisitor(
+                configuration,
+                steps,
+                flow,
+                script,
+                diagram,
+                adocHeader,
+                configCols,
+                titles == null ? DocTitles.defaults() : titles,
+                configHeaders,
+                emptyDefaultText,
+                indexIntro,
+                indexFooter,
+                indexPrevLabel,
+                indexPrevLink,
+                indexNextLabel,
+                indexNextLink);
     }
 
     private Path pagePath(final Path out, final DocSubject subject, final String extension) {
@@ -448,7 +496,8 @@ public class GenerateDocMojo extends BaseHopMojo {
             final var rel = Path.of(subject.relativePath().replace('\\', '/')); // may include sub-folders
             final var parent = rel.getParent();
             final var base = subject.name();
-            return parent == null ? out.resolve(base + "." + extension)
+            return parent == null
+                    ? out.resolve(base + "." + extension)
                     : out.resolve(parent).resolve(base + "." + extension);
         }
         return out.resolve(subject.name() + "." + extension);
@@ -487,7 +536,9 @@ public class GenerateDocMojo extends BaseHopMojo {
             if (name.equals(subject.name())
                     || (containsWildcard(name) && matchesGlob(name.replace('\\', '/'), subject.relativePath()))) {
                 final var kind = enrichment.getKind();
-                if (kind == null || kind.isBlank() || kind.equalsIgnoreCase(subject.kind().name())) {
+                if (kind == null
+                        || kind.isBlank()
+                        || kind.equalsIgnoreCase(subject.kind().name())) {
                     return enrichment;
                 }
             }
@@ -520,8 +571,7 @@ public class GenerateDocMojo extends BaseHopMojo {
         return Pattern.compile(regex.toString()).matcher(relativePath).matches();
     }
 
-    private record IndexedSubject(DocSubject subject, Object loaded, Enrichment enrichment) {
-    }
+    private record IndexedSubject(DocSubject subject, Object loaded, Enrichment enrichment) {}
 
     /** Supported documentation formats. */
     public enum DocFormat {

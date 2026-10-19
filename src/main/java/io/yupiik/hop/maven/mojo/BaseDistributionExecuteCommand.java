@@ -1,20 +1,21 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance
+ * Copyright (c) 2026 - Yupiik SAS - https://yupiik.io/
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package io.yupiik.hop.maven.mojo;
+
+import static java.util.Collections.emptyMap;
 
 import io.yupiik.hop.maven.distribution.SecureUnzip;
 import java.io.File;
@@ -30,9 +31,6 @@ import java.util.Map;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Parameter;
-
-import static java.util.Collections.emptyList;
-import static java.util.Collections.emptyMap;
 
 /**
  * Base for the goals that assemble a Hop distribution in a working directory and then execute one of
@@ -146,8 +144,10 @@ public abstract class BaseDistributionExecuteCommand extends BuildMojo {
     protected Path resolveDistributionZip(final Path workdir) throws IOException {
         final var coordinate = effectiveDistribution();
         if (coordinate == null || coordinate.isBlank()) {
-            final var projectZip = new File(project.getBuild().getDirectory(),
-                    project.getBuild().getFinalName() + ".zip").toPath();
+            final var projectZip = new File(
+                            project.getBuild().getDirectory(),
+                            project.getBuild().getFinalName() + ".zip")
+                    .toPath();
             if (Files.isRegularFile(projectZip)) {
                 getLog().info("Using locally built distribution " + projectZip);
                 return projectZip;
@@ -166,9 +166,8 @@ public abstract class BaseDistributionExecuteCommand extends BuildMojo {
     }
 
     private void mergeRepository(final Path exploded) throws IOException {
-        final var repo = repository != null
-                ? repository.toPath().toAbsolutePath().normalize()
-                : null;
+        final var repo =
+                repository != null ? repository.toPath().toAbsolutePath().normalize() : null;
         if (repo == null || !Files.isDirectory(repo)) {
             getLog().debug("repository '" + repo + "' is not a folder, skipping the merge");
             return;

@@ -1,18 +1,17 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance
+ * Copyright (c) 2026 - Yupiik SAS - https://yupiik.io/
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package io.yupiik.hop.maven.distribution;
 
@@ -38,21 +37,20 @@ public final class HopInstaller {
     }
 
     private static final String[] CATEGORY_MAPPING = {
-            "hop-transform-", "transforms",
-            "hop-action-", "actions",
-            "hop-engines-", "engines",
-            "hop-tech-", "tech",
-            "hop-databases-", "databases",
-            "hop-misc-", "misc"
+        "hop-transform-", "transforms",
+        "hop-action-", "actions",
+        "hop-engines-", "engines",
+        "hop-tech-", "tech",
+        "hop-databases-", "databases",
+        "hop-misc-", "misc"
     };
 
     /**
      * @return the {@code plugins/<category>[</artifactId>]} target folder for the given artifactId.
      */
     private static Path pluginFolder(final Path pluginsRoot, final String artifactId, final String categoryOverride) {
-        final var category = (categoryOverride != null && !categoryOverride.isBlank())
-                ? categoryOverride
-                : category(artifactId);
+        final var category =
+                (categoryOverride != null && !categoryOverride.isBlank()) ? categoryOverride : category(artifactId);
         return pluginsRoot.resolve(category).resolve(artifactId);
     }
 
@@ -75,8 +73,13 @@ public final class HopInstaller {
      * @param dependencies       resolved transitive dependency jars (may be empty); stored under {@code lib/}.
      * @param categoryOverride   optional explicit category, otherwise derived from the artifactId.
      */
-    public static Path installPlugin(final Path pluginsRoot, final String artifactId, final Path pluginJar,
-                                     final List<Path> dependencies, final String categoryOverride) throws IOException {
+    public static Path installPlugin(
+            final Path pluginsRoot,
+            final String artifactId,
+            final Path pluginJar,
+            final List<Path> dependencies,
+            final String categoryOverride)
+            throws IOException {
         final var folder = pluginFolder(pluginsRoot, artifactId, categoryOverride);
         Files.createDirectories(folder);
         final var targetJar = folder.resolve(pluginJar.getFileName().toString());

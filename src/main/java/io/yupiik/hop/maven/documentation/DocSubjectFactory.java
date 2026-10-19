@@ -1,18 +1,17 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance
+ * Copyright (c) 2026 - Yupiik SAS - https://yupiik.io/
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package io.yupiik.hop.maven.documentation;
 
@@ -70,7 +69,8 @@ public class DocSubjectFactory {
         if (subject instanceof PipelineMeta pipelineMeta) {
             return pipelineMeta.getTransformsArray() != null && pipelineMeta.getTransformsArray().length > 0;
         }
-        return subject instanceof WorkflowMeta workflowMeta && workflowMeta.getActions() != null
+        return subject instanceof WorkflowMeta workflowMeta
+                && workflowMeta.getActions() != null
                 && !workflowMeta.getActions().isEmpty();
     }
 
@@ -84,8 +84,11 @@ public class DocSubjectFactory {
             if (name == null || name.isBlank()) {
                 continue;
             }
-            steps.add(new Step(name.trim(), XmlHandler.getTagValue(node, "type"),
-                    valueOrBlank(XmlHandler.getTagValue(node, "description")), 1));
+            steps.add(new Step(
+                    name.trim(),
+                    XmlHandler.getTagValue(node, "type"),
+                    valueOrBlank(XmlHandler.getTagValue(node, "description")),
+                    1));
         }
         return steps;
     }
@@ -111,7 +114,8 @@ public class DocSubjectFactory {
             if (!seen.add(key)) {
                 continue;
             }
-            parameters.add(new Parameter(key,
+            parameters.add(new Parameter(
+                    key,
                     valueOrBlank(XmlHandler.getTagValue(node, "default_value")),
                     valueOrBlank(XmlHandler.getTagValue(node, "description"))));
         }
@@ -132,8 +136,11 @@ public class DocSubjectFactory {
         final var steps = new ArrayList<Step>();
         if (subject instanceof PipelineMeta pipelineMeta) {
             for (final var transform : pipelineMeta.getTransformsArray()) {
-                steps.add(new Step(transform.getName(), transform.getTransformPluginId(),
-                        valueOrBlank(transform.getDescription()), 1));
+                steps.add(new Step(
+                        transform.getName(),
+                        transform.getTransformPluginId(),
+                        valueOrBlank(transform.getDescription()),
+                        1));
             }
         }
         return steps;
@@ -143,7 +150,8 @@ public class DocSubjectFactory {
         final var steps = new ArrayList<Step>();
         if (subject instanceof WorkflowMeta workflowMeta) {
             for (final var action : workflowMeta.getActions()) {
-                final var type = action.getAction() == null ? null : action.getAction().getPluginId();
+                final var type =
+                        action.getAction() == null ? null : action.getAction().getPluginId();
                 steps.add(new Step(action.getName(), type, valueOrBlank(action.getDescription()), 1));
             }
         }

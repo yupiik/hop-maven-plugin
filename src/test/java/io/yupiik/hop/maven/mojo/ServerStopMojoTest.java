@@ -1,20 +1,22 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance
+ * Copyright (c) 2026 - Yupiik SAS - https://yupiik.io/
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package io.yupiik.hop.maven.mojo;
+
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
@@ -24,9 +26,6 @@ import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ServerStopMojoTest {
 
@@ -44,13 +43,14 @@ class ServerStopMojoTest {
             exchange.close();
             // free the port shortly after, simulating a graceful Hop shutdown
             new Thread(() -> {
-                try {
-                    Thread.sleep(100);
-                    server.stop(0);
-                } catch (final InterruptedException ignored) {
-                    Thread.currentThread().interrupt();
-                }
-            }).start();
+                        try {
+                            Thread.sleep(100);
+                            server.stop(0);
+                        } catch (final InterruptedException ignored) {
+                            Thread.currentThread().interrupt();
+                        }
+                    })
+                    .start();
         });
         server.start();
         try {
@@ -72,7 +72,8 @@ class ServerStopMojoTest {
             mojo.shutdownTimeoutMs = 5_000;
             mojo.execute();
 
-            assertTrue(authHeader.get() != null && authHeader.get().startsWith("Basic "),
+            assertTrue(
+                    authHeader.get() != null && authHeader.get().startsWith("Basic "),
                     "basic auth must be sent when enable_auth is true, got: " + authHeader.get());
         } finally {
             server.stop(0);
@@ -89,13 +90,14 @@ class ServerStopMojoTest {
             exchange.sendResponseHeaders(200, -1);
             exchange.close();
             new Thread(() -> {
-                try {
-                    Thread.sleep(100);
-                    server.stop(0);
-                } catch (final InterruptedException ignored) {
-                    Thread.currentThread().interrupt();
-                }
-            }).start();
+                        try {
+                            Thread.sleep(100);
+                            server.stop(0);
+                        } catch (final InterruptedException ignored) {
+                            Thread.currentThread().interrupt();
+                        }
+                    })
+                    .start();
         });
         server.start();
         try {

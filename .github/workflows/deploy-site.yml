@@ -1,0 +1,55 @@
+name: deploy-site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  MAVEN_ARGS: -B -q -T1C -Daether.connector.basic.downstreamThreads=128
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      # composite action: checkout + JDK + maven cache + maven install (from Maven Central)
+      - name: Setup Maven Action
+        uses: s4u/setup-maven-action@v1.21.0
+        with:
+          maven-version: '3.9.16'
+          java-version: '21'
+          java-distribution: temurin
+
+      # package builds the minisite into target/hop-maven-plugin (yupiik-tools-minisite, package phase)
+      # tests are skipped here - the build.yml/pr.yml workflows already run them
+      - name: Build minisite
+        run: mvn ${MAVEN_ARGS} package -DskipTests
+
+      # configure GitHub Pages + upload the rendered site as a Pages artifact
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: target/hop-maven-plugin
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

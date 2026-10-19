@@ -1,20 +1,23 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance
+ * Copyright (c) 2026 - Yupiik SAS - https://yupiik.io/
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package io.yupiik.hop.maven.mojo;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.yupiik.hop.maven.resolve.ArtifactResolver;
 import java.nio.charset.StandardCharsets;
@@ -35,10 +38,6 @@ import org.eclipse.aether.transport.file.FileTransporterFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 class BuildMojoScratchTest {
 
     private static final String GROUP = "org.apache.hop";
@@ -55,16 +54,19 @@ class BuildMojoScratchTest {
 
         final var system = newSystem();
         final var session = MavenRepositorySystemUtils.newSession();
-        session.setLocalRepositoryManager(system.newLocalRepositoryManager(session,
-                new LocalRepository(repoDir.toFile())));
-        final var remote = new RemoteRepository.Builder("local", "default", repoDir.toUri().toString()).build();
+        session.setLocalRepositoryManager(
+                system.newLocalRepositoryManager(session, new LocalRepository(repoDir.toFile())));
+        final var remote =
+                new RemoteRepository.Builder("local", "default", repoDir.toUri().toString()).build();
         final var resolver = new ArtifactResolver(system, session, List.of(remote));
 
         // the custom application content (config) the distribution will layer
         final var baseDir = tmp.resolve("src/main/hop/distribution");
         Files.createDirectories(baseDir.resolve("config/projects/sample"));
-        Files.writeString(baseDir.resolve("config/projects/sample/project-config.json"),
-                "{\"name\":\"sample\"}", StandardCharsets.UTF_8);
+        Files.writeString(
+                baseDir.resolve("config/projects/sample/project-config.json"),
+                "{\"name\":\"sample\"}",
+                StandardCharsets.UTF_8);
 
         // a minimal project so workdirPath()/defaults resolve
         final var model = new Model();
@@ -98,11 +100,15 @@ class BuildMojoScratchTest {
         // the base distribution folder is created
         assertTrue(Files.isDirectory(hop), "hop/ must exist");
         // custom content present
-        assertTrue(Files.isRegularFile(hop.resolve("lib/jdbc/hop-driver-custom-" + VERSION + ".jar")),
+        assertTrue(
+                Files.isRegularFile(hop.resolve("lib/jdbc/hop-driver-custom-" + VERSION + ".jar")),
                 "custom jdbc driver -> lib/jdbc");
-        assertTrue(Files.isRegularFile(hop.resolve("plugins/transforms/hop-transform-custom/hop-transform-custom-" + VERSION + ".jar")),
+        assertTrue(
+                Files.isRegularFile(hop.resolve(
+                        "plugins/transforms/hop-transform-custom/hop-transform-custom-" + VERSION + ".jar")),
                 "custom transform -> plugins/transforms");
-        assertTrue(Files.isRegularFile(hop.resolve("config/projects/sample/project-config.json")),
+        assertTrue(
+                Files.isRegularFile(hop.resolve("config/projects/sample/project-config.json")),
                 "baseDirectory config merged");
         // NO base distribution content was produced
         assertFalse(Files.exists(hop.resolve("hop-run.sh")), "no base launcher must exist in scratch mode");
@@ -131,17 +137,17 @@ class BuildMojoScratchTest {
 
         final var system = newSystem();
         final var session = MavenRepositorySystemUtils.newSession();
-        session.setLocalRepositoryManager(system.newLocalRepositoryManager(session,
-                new LocalRepository(repoDir.toFile())));
-        final var remote = new RemoteRepository.Builder("local", "default", repoDir.toUri().toString()).build();
+        session.setLocalRepositoryManager(
+                system.newLocalRepositoryManager(session, new LocalRepository(repoDir.toFile())));
+        final var remote =
+                new RemoteRepository.Builder("local", "default", repoDir.toUri().toString()).build();
         final var resolver = new ArtifactResolver(system, session, List.of(remote));
 
         // the user "fakes" a tiny distribution: a launcher + some config via baseDirectory
         final var baseDir = tmp.resolve("src/main/hop/distribution");
         Files.createDirectories(baseDir.resolve("config"));
         Files.writeString(baseDir.resolve("config/hop-config.json"), "{}", StandardCharsets.UTF_8);
-        Files.writeString(baseDir.resolve("hop-run.sh"),
-                "#!/bin/sh\necho fake-hop\n", StandardCharsets.UTF_8);
+        Files.writeString(baseDir.resolve("hop-run.sh"), "#!/bin/sh\necho fake-hop\n", StandardCharsets.UTF_8);
 
         final var model = new Model();
         model.setGroupId("io.yupiik.example");
@@ -177,16 +183,20 @@ class BuildMojoScratchTest {
         assertTrue(Files.isRegularFile(exploded.resolve("hop-run.sh")), "fake hop-run.sh must exist");
         assertTrue(exploded.resolve("hop-run.sh").toFile().canExecute(), "fake hop-run.sh must be executable");
         assertTrue(Files.isRegularFile(exploded.resolve("config/hop-config.json")), "baseDirectory config merged");
-        assertTrue(Files.isRegularFile(
-                exploded.resolve("plugins/transforms/hop-transform-custom/hop-transform-custom-" + VERSION + ".jar")),
+        assertTrue(
+                Files.isRegularFile(exploded.resolve(
+                        "plugins/transforms/hop-transform-custom/hop-transform-custom-" + VERSION + ".jar")),
                 "custom transform installed by the enrichment");
     }
 
     private static void buildPluginJar(final Path repoDir, final String artifactId) throws Exception {
-        final var versionedDir = repoDir.resolve(GROUP.replace('.', '/')).resolve(artifactId).resolve(VERSION);
+        final var versionedDir =
+                repoDir.resolve(GROUP.replace('.', '/')).resolve(artifactId).resolve(VERSION);
         Files.createDirectories(versionedDir);
         final var jarFile = versionedDir.resolve(artifactId + "-" + VERSION + ".jar");
-        Files.writeString(versionedDir.resolve(artifactId + "-" + VERSION + ".pom"), """
+        Files.writeString(
+                versionedDir.resolve(artifactId + "-" + VERSION + ".pom"),
+                """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project xmlns="http://maven.apache.org/POM/4.0.0">
                   <modelVersion>4.0.0</modelVersion>
@@ -194,7 +204,8 @@ class BuildMojoScratchTest {
                   <artifactId>%s</artifactId>
                   <version>%s</version>
                 </project>
-                """.formatted(GROUP, artifactId, VERSION), StandardCharsets.UTF_8);
+                """.formatted(GROUP, artifactId, VERSION),
+                StandardCharsets.UTF_8);
         try (final var out = new java.util.zip.ZipOutputStream(Files.newOutputStream(jarFile))) {
             out.putNextEntry(new java.util.zip.ZipEntry("META-INF/MANIFEST.MF"));
             out.write("Manifest-Version: 1.0\n".getBytes(StandardCharsets.UTF_8));

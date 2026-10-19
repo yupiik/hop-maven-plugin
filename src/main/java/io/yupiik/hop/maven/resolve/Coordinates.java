@@ -1,18 +1,17 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance
+ * Copyright (c) 2026 - Yupiik SAS - https://yupiik.io/
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package io.yupiik.hop.maven.resolve;
 
@@ -36,8 +35,12 @@ public record Coordinates(String groupId, String artifactId, String version, Str
             throw new IllegalArgumentException("Empty artifact coordinates");
         }
         final var artifact = new DefaultArtifact(value.trim());
-        return new Coordinates(artifact.getGroupId(), artifact.getArtifactId(), artifact.getVersion(),
-                blankToNull(artifact.getExtension()), blankToNull(artifact.getClassifier()));
+        return new Coordinates(
+                artifact.getGroupId(),
+                artifact.getArtifactId(),
+                artifact.getVersion(),
+                blankToNull(artifact.getExtension()),
+                blankToNull(artifact.getClassifier()));
     }
 
     private static String blankToNull(final String value) {
@@ -49,7 +52,10 @@ public record Coordinates(String groupId, String artifactId, String version, Str
      */
     public String coordinates() {
         final var builder = new StringBuilder()
-                .append(groupId).append(':').append(artifactId).append(':')
+                .append(groupId)
+                .append(':')
+                .append(artifactId)
+                .append(':')
                 .append(type == null || type.isBlank() ? "jar" : type);
         if (classifier != null && !classifier.isBlank()) {
             builder.append(':').append(classifier);
@@ -73,7 +79,11 @@ public record Coordinates(String groupId, String artifactId, String version, Str
         final var t = implicitType && defaultType != null && !defaultType.isBlank() ? defaultType : type;
         final var c = (classifier == null || classifier.isBlank()) ? defaultClassifier : classifier;
         final var builder = new StringBuilder()
-                .append(groupId).append(':').append(artifactId).append(':').append(t == null ? "jar" : t);
+                .append(groupId)
+                .append(':')
+                .append(artifactId)
+                .append(':')
+                .append(t == null ? "jar" : t);
         if (c != null && !c.isBlank()) {
             builder.append(':').append(c);
         }

@@ -1,18 +1,17 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance
+ * Copyright (c) 2026 - Yupiik SAS - https://yupiik.io/
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package io.yupiik.hop.maven.documentation;
 
@@ -45,8 +44,12 @@ public abstract class DocVisitor {
     private final boolean script;
     private final boolean diagram;
 
-    protected DocVisitor(final boolean configuration, final boolean steps,
-                         final boolean flow, final boolean script, final boolean diagram) {
+    protected DocVisitor(
+            final boolean configuration,
+            final boolean steps,
+            final boolean flow,
+            final boolean script,
+            final boolean diagram) {
         this.configuration = configuration;
         this.steps = steps;
         this.flow = flow;
@@ -112,8 +115,9 @@ public abstract class DocVisitor {
     }
 
     /** Render a single page from the extracted sections. */
-    public abstract void renderPage(final DocSubject subject, final DocSections sections,
-                                    final PageHeaders headers, final Writer out) throws IOException;
+    public abstract void renderPage(
+            final DocSubject subject, final DocSections sections, final PageHeaders headers, final Writer out)
+            throws IOException;
 
     /** Render the index page listing all documented artefacts. */
     public abstract void renderIndex(final IndexModel index, final Writer out) throws IOException;

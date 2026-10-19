@@ -1,20 +1,22 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance
+ * Copyright (c) 2026 - Yupiik SAS - https://yupiik.io/
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package io.yupiik.hop.maven.mojo;
+
+import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
 
 import io.yupiik.hop.maven.distribution.DistributionBuilder;
 import io.yupiik.hop.maven.distribution.DistributionResolver;
@@ -38,9 +40,6 @@ import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProjectHelper;
 import org.apache.maven.settings.Settings;
 
-import static java.util.Collections.emptyList;
-import static java.util.Collections.emptyMap;
-
 /**
  * Assembles a custom Apache Hop distribution.
  * <p>
@@ -53,7 +52,9 @@ import static java.util.Collections.emptyMap;
  * This mojo is also the base for the {@code run}/{@code encrypt}/{@code gui}/{@code server} goals,
  * which reuse the very same distribution assembly and only differ in the script they execute.
  */
-@Mojo(name = "build", requiresDependencyResolution = org.apache.maven.plugins.annotations.ResolutionScope.RUNTIME,
+@Mojo(
+        name = "build",
+        requiresDependencyResolution = org.apache.maven.plugins.annotations.ResolutionScope.RUNTIME,
         threadSafe = true)
 public class BuildMojo extends BaseHopMojo {
 
@@ -81,7 +82,8 @@ public class BuildMojo extends BaseHopMojo {
      * scratch value: they then log a warning, skip the unzip and assemble only the custom content
      * (plus your {@code baseDirectory}) so you can supply a launcher yourself and fake a distribution.
      */
-    @Parameter(property = "hop.build.versionUrl",
+    @Parameter(
+            property = "hop.build.versionUrl",
             defaultValue = "https://downloads.apache.org/hop/${hop.version}/apache-hop-client-${hop.version}.zip")
     protected String versionUrl;
 
@@ -89,8 +91,7 @@ public class BuildMojo extends BaseHopMojo {
      * Folder whose content is copied relatively on top of the assembled {@code hop/} distribution
      * (injecting or overriding configuration). Defaults to {@code src/main/hop/distribution}.
      */
-    @Parameter(property = "hop.build.baseDirectory",
-            defaultValue = "${project.basedir}/src/main/hop/distribution")
+    @Parameter(property = "hop.build.baseDirectory", defaultValue = "${project.basedir}/src/main/hop/distribution")
     protected File baseDirectory;
 
     /**
@@ -116,7 +117,8 @@ public class BuildMojo extends BaseHopMojo {
     /**
      * Output zip of the assembled distribution.
      */
-    @Parameter(property = "hop.build.zipFile",
+    @Parameter(
+            property = "hop.build.zipFile",
             defaultValue = "${project.build.directory}/${project.build.finalName}.zip")
     protected File zipFile;
 
@@ -227,15 +229,14 @@ public class BuildMojo extends BaseHopMojo {
      */
     protected Path assembleDistribution() throws MojoExecutionException {
         final var wd = workdirPath();
-        final var hop = hopFolder != null
-                ? hopFolder.toPath().toAbsolutePath().normalize()
-                : wd.resolve("hop");
+        final var hop = hopFolder != null ? hopFolder.toPath().toAbsolutePath().normalize() : wd.resolve("hop");
         try {
             final var zip = resolveDistributionZip(wd);
             if (zip == null) {
                 // scratch distribution: no base downloaded/unzipped, assemble only the custom content
                 Files.createDirectories(hop);
-                getLog().info("Scratch distribution: no base downloaded, assembling only the custom content into " + hop);
+                getLog().info("Scratch distribution: no base downloaded, assembling only the custom content into "
+                        + hop);
             } else {
                 SecureUnzip.unzip(zip, hop, skipRootFolderOnUnzip);
                 getLog().info("Unzipped " + zip + " into " + hop);
@@ -255,14 +256,12 @@ public class BuildMojo extends BaseHopMojo {
      * goals.
      */
     protected void enrich(final Path hop) throws IOException {
-        final var baseDir = baseDirectory != null
-                ? baseDirectory.toPath().toAbsolutePath().normalize()
-                : null;
+        final var baseDir =
+                baseDirectory != null ? baseDirectory.toPath().toAbsolutePath().normalize() : null;
         final var resolver = newResolver();
         final var builder = new DistributionBuilder(resolver, hop, getLog()::debug);
         builder.enrich(new DistributionBuilder.EnrichmentSpec(
-                drivers, libs, javaagents, transforms, plugins,
-                toOverrides(), baseDir));
+                drivers, libs, javaagents, transforms, plugins, toOverrides(), baseDir));
     }
 
     /**
@@ -273,7 +272,10 @@ public class BuildMojo extends BaseHopMojo {
         if (workdir != null) {
             return toPath(workdir, "workdir");
         }
-        return new File(project.getBuild().getDirectory(), workdirName()).toPath().toAbsolutePath().normalize();
+        return new File(project.getBuild().getDirectory(), workdirName())
+                .toPath()
+                .toAbsolutePath()
+                .normalize();
     }
 
     /**
@@ -305,9 +307,18 @@ public class BuildMojo extends BaseHopMojo {
     }
 
     private DistributionResolver newResolverForDownload(final Path workdir) {
-        return new DistributionResolver(newResolver(), settings,
-                effectiveVersion(), username, password, authorizationHeaderName(), workdir,
-                getLog()::info, null, cacheDistribution, Duration.ofMinutes(downloadTimeoutMinutes));
+        return new DistributionResolver(
+                newResolver(),
+                settings,
+                effectiveVersion(),
+                username,
+                password,
+                authorizationHeaderName(),
+                workdir,
+                getLog()::info,
+                null,
+                cacheDistribution,
+                Duration.ofMinutes(downloadTimeoutMinutes));
     }
 
     private String authorizationHeaderName() {
@@ -340,9 +351,7 @@ public class BuildMojo extends BaseHopMojo {
                 continue;
             }
             result.add(new DistributionBuilder.OverrideEntry(
-                    override.path,
-                    Coordinates.of(overrideCoordinates(override.dependency)),
-                    emptyMap()));
+                    override.path, Coordinates.of(overrideCoordinates(override.dependency)), emptyMap()));
         }
         return result;
     }
@@ -350,8 +359,10 @@ public class BuildMojo extends BaseHopMojo {
     private static String overrideCoordinates(final Dependency dependency) {
         final var builder = new StringBuilder()
                 .append(valueOr(dependency.groupId, "undefined"))
-                .append(':').append(valueOr(dependency.artifactId, "undefined"))
-                .append(':').append(valueOr(dependency.type, "jar"));
+                .append(':')
+                .append(valueOr(dependency.artifactId, "undefined"))
+                .append(':')
+                .append(valueOr(dependency.type, "jar"));
         if (dependency.classifier != null && !dependency.classifier.isBlank()) {
             builder.append(':').append(dependency.classifier);
         }
@@ -388,9 +399,11 @@ public class BuildMojo extends BaseHopMojo {
      * {@link #execute()} entirely.
      */
     @java.lang.Override
-    protected void process(final List<Path> files, final Path source,
-                           final org.apache.hop.metadata.api.IHopMetadataProvider provider,
-                           final org.apache.hop.core.variables.Variables variables) {
+    protected void process(
+            final List<Path> files,
+            final Path source,
+            final org.apache.hop.metadata.api.IHopMetadataProvider provider,
+            final org.apache.hop.core.variables.Variables variables) {
         // no-op
     }
 

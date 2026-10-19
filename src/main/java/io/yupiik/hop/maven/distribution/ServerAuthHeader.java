@@ -1,25 +1,22 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance
+ * Copyright (c) 2026 - Yupiik SAS - https://yupiik.io/
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package io.yupiik.hop.maven.distribution;
 
 import java.net.URI;
 import java.util.Base64;
-import java.util.List;
-import java.util.Locale;
 import java.util.function.Function;
 import org.apache.maven.settings.Settings;
 
@@ -55,9 +52,13 @@ public final class ServerAuthHeader {
      * @param decipher       optional password decipherer (e.g. from {@code MavenSettingsDecryptor}).
      * @return the header name/value to set for the download, or {@code null} when no credentials.
      */
-    public static Header forUrl(final URI uri, final Settings settings,
-                                final String username, final String password,
-                                final String headerName, final Function<String, String> decipher) {
+    public static Header forUrl(
+            final URI uri,
+            final Settings settings,
+            final String username,
+            final String password,
+            final String headerName,
+            final Function<String, String> decipher) {
         final var host = uri != null ? uri.getHost() : null;
         final var resolved = resolveFromSettings(host, settings, username, password, decipher);
         final var user = resolved == null ? username : resolved[0];
@@ -65,8 +66,9 @@ public final class ServerAuthHeader {
         if (pass == null || pass.isBlank()) {
             return user == null || user.isBlank() ? null : basic(user, "");
         }
-        if (pass.startsWith(BEARER_PREFIX) && (pass.length() == BEARER_PREFIX.length()
-                || Character.isWhitespace(pass.charAt(BEARER_PREFIX.length())))) {
+        if (pass.startsWith(BEARER_PREFIX)
+                && (pass.length() == BEARER_PREFIX.length()
+                        || Character.isWhitespace(pass.charAt(BEARER_PREFIX.length())))) {
             // a "Bearer ..." password means: the username is the header name and the whole password
             // string (already `Bearer ...`) is the value.
             final var name = user == null || user.isBlank()
@@ -78,13 +80,17 @@ public final class ServerAuthHeader {
     }
 
     private static Header basic(final String user, final String pass) {
-        final var token = Base64.getEncoder().encodeToString((user + ":" + pass).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        final var token = Base64.getEncoder()
+                .encodeToString((user + ":" + pass).getBytes(java.nio.charset.StandardCharsets.UTF_8));
         return new Header("Authorization", "Basic " + token);
     }
 
-    private static String[] resolveFromSettings(final String host, final Settings settings,
-                                                final String username, final String password,
-                                                final Function<String, String> decipher) {
+    private static String[] resolveFromSettings(
+            final String host,
+            final Settings settings,
+            final String username,
+            final String password,
+            final Function<String, String> decipher) {
         if (settings == null || host == null || settings.getServers() == null) {
             return null;
         }
@@ -95,14 +101,14 @@ public final class ServerAuthHeader {
             }
             // a server may be referenced either by its id matching the hostname, or via
             // ${hostname} prefixed ids; accept both.
-            if (matchesHost(host, id) || matchesHost(host, "http://" + id)
+            if (matchesHost(host, id)
+                    || matchesHost(host, "http://" + id)
                     || matchesHost(host, "https://" + id)
                     || id.equals(host)) {
                 if (server.getUsername() != null && server.getUsername().isBlank()) {
                     continue; // a server without credentials is not eligible
                 }
-                return new String[]{server.getUsername(),
-                        decipherOrRaw(server.getPassword(), decipher)};
+                return new String[] {server.getUsername(), decipherOrRaw(server.getPassword(), decipher)};
             }
         }
         return null;
@@ -136,6 +142,5 @@ public final class ServerAuthHeader {
     /**
      * A header name/value pair to send on the download request.
      */
-    public record Header(String name, String value) {
-    }
+    public record Header(String name, String value) {}
 }

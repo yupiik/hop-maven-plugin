@@ -1,18 +1,17 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance
+ * Copyright (c) 2026 - Yupiik SAS - https://yupiik.io/
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package io.yupiik.hop.maven.distribution;
 
@@ -47,8 +46,7 @@ public class DistributionBuilder {
     public DistributionBuilder(final ArtifactResolver resolver, final Path hopRoot, final Consumer<String> info) {
         this.resolver = resolver;
         this.hopRoot = hopRoot;
-        this.info = info == null ? ignored -> {
-        } : info;
+        this.info = info == null ? ignored -> {} : info;
     }
 
     /**
@@ -124,7 +122,8 @@ public class DistributionBuilder {
         }
         Files.walkFileTree(baseDirectory, new SimpleFileVisitor<Path>() {
             @Override
-            public FileVisitResult preVisitDirectory(final Path dir, final BasicFileAttributes attrs) throws IOException {
+            public FileVisitResult preVisitDirectory(final Path dir, final BasicFileAttributes attrs)
+                    throws IOException {
                 if (dir.equals(baseDirectory)) {
                     return FileVisitResult.CONTINUE;
                 }
@@ -191,9 +190,10 @@ public class DistributionBuilder {
     private void injectJavaagentIntoScripts(final String javaagentArg) throws IOException {
         try (var stream = Files.list(hopRoot)) {
             for (final Path script : stream.filter(p -> {
-                final var n = p.getFileName().toString();
-                return n.startsWith("hop-") && (n.endsWith(".sh") || n.endsWith(".bat"));
-            }).toList()) {
+                        final var n = p.getFileName().toString();
+                        return n.startsWith("hop-") && (n.endsWith(".sh") || n.endsWith(".bat"));
+                    })
+                    .toList()) {
                 injectOne(script, javaagentArg);
             }
         }
@@ -241,19 +241,18 @@ public class DistributionBuilder {
     /**
      * All the enrichment inputs; fields mirror the build mojo parameters.
      */
-    public record EnrichmentSpec(List<String> drivers,
-                                 List<String> libs,
-                                 List<String> javaagents,
-                                 List<String> transforms,
-                                 List<String> marketplacePlugins,
-                                 List<OverrideEntry> overrides,
-                                 Path baseDirectory) {
-    }
+    public record EnrichmentSpec(
+            List<String> drivers,
+            List<String> libs,
+            List<String> javaagents,
+            List<String> transforms,
+            List<String> marketplacePlugins,
+            List<OverrideEntry> overrides,
+            Path baseDirectory) {}
 
     /**
      * An in-place jar override: a relative {@code path} inside the distribution overridden by a
      * resolved {@code dependency} coordinate.
      */
-    public record OverrideEntry(String path, Coordinates dependency, Map<String, String> attributes) {
-    }
+    public record OverrideEntry(String path, Coordinates dependency, Map<String, String> attributes) {}
 }

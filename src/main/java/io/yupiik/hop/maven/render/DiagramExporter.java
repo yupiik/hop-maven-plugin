@@ -1,25 +1,23 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance
+ * Copyright (c) 2026 - Yupiik SAS - https://yupiik.io/
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package io.yupiik.hop.maven.render;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
 import org.apache.hop.core.diagram.DiagramExportOptions;
@@ -90,7 +88,8 @@ public class DiagramExporter {
         } else if (subject instanceof WorkflowMeta workflowMeta) {
             for (final var action : workflowMeta.getActions()) {
                 if (action.isMissing()) {
-                    missing.add("action '" + action.getName() + "' (" + action.getAction().getPluginId() + ")");
+                    missing.add("action '" + action.getName() + "' ("
+                            + action.getAction().getPluginId() + ")");
                 }
             }
         }
@@ -105,10 +104,18 @@ public class DiagramExporter {
      * Render one diagram from an already loaded subject into {@code target} preserving {@code rel}
      * (the source-relative path). Returns the output file.
      */
-    public Path renderOne(final Path file, final Path rel, final Object subject, final Format format,
-                          final Path target, final Variables variables, final IHopMetadataProvider provider,
-                          final float magnification, final boolean includeNotes,
-                          final Consumer<String> log) throws Exception {
+    public Path renderOne(
+            final Path file,
+            final Path rel,
+            final Object subject,
+            final Format format,
+            final Path target,
+            final Variables variables,
+            final IHopMetadataProvider provider,
+            final float magnification,
+            final boolean includeNotes,
+            final Consumer<String> log)
+            throws Exception {
         final var dir = target.resolve(rel).getParent();
         if (!Files.exists(dir)) {
             Files.createDirectories(dir);
@@ -122,21 +129,20 @@ public class DiagramExporter {
         options.setMagnification(magnification);
         options.setIncludeNotes(includeNotes);
 
-        final var context =
-                new ExportContext(variables, provider, new LogChannel("hop-maven-plugin"),
-                        IExportContext.ExportEnvironment.BATCH);
+        final var context = new ExportContext(
+                variables, provider, new LogChannel("hop-maven-plugin"), IExportContext.ExportEnvironment.BATCH);
 
         final var result = doExport(subject, format, options, context);
         if (result == null || !result.isSuccess()) {
-            throw new HopException("Export failed for " + file + ": "
-                    + (result == null ? "null result" : result.getErrorMessage()));
+            throw new HopException(
+                    "Export failed for " + file + ": " + (result == null ? "null result" : result.getErrorMessage()));
         }
         log.accept("Rendered " + file + " -> " + output);
         return output;
     }
 
-    private DiagramExportResult doExport(final Object subject, final Format format,
-                                         final DiagramExportOptions options, final IExportContext context)
+    private DiagramExportResult doExport(
+            final Object subject, final Format format, final DiagramExportOptions options, final IExportContext context)
             throws HopException {
         if (format == Format.SVG) {
             if (subject instanceof PipelineMeta pipelineMeta) {
@@ -154,6 +160,7 @@ public class DiagramExporter {
                 return new WorkflowMermaidDiagramExporter().export(workflowMeta, options, context);
             }
         }
-        throw new HopException("No exporter for format " + format + " and subject " + subject.getClass().getName());
+        throw new HopException("No exporter for format " + format + " and subject "
+                + subject.getClass().getName());
     }
 }

@@ -1,20 +1,22 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance
+ * Copyright (c) 2026 - Yupiik SAS - https://yupiik.io/
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package io.yupiik.hop.maven.distribution;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.net.URI;
 import java.util.Base64;
@@ -22,9 +24,6 @@ import java.util.List;
 import org.apache.maven.settings.Server;
 import org.apache.maven.settings.Settings;
 import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 class ServerAuthHeaderTest {
 
@@ -37,10 +36,11 @@ class ServerAuthHeaderTest {
 
     @Test
     void explicitBasicAuth() {
-        final var header = ServerAuthHeader.forUrl(
-                URI.create("https://host/repo.zip"), null, "user", "pass", null, null);
+        final var header =
+                ServerAuthHeader.forUrl(URI.create("https://host/repo.zip"), null, "user", "pass", null, null);
         assertEquals("Authorization", header.name());
-        final var expected = "Basic " + Base64.getEncoder().encodeToString("user:pass".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        final var expected = "Basic "
+                + Base64.getEncoder().encodeToString("user:pass".getBytes(java.nio.charset.StandardCharsets.UTF_8));
         assertEquals(expected, header.value());
     }
 
@@ -54,8 +54,8 @@ class ServerAuthHeaderTest {
 
     @Test
     void bearerTokenDefaultsHeaderName() {
-        final var header = ServerAuthHeader.forUrl(
-                URI.create("https://host/repo.zip"), null, null, "Bearer abc", null, null);
+        final var header =
+                ServerAuthHeader.forUrl(URI.create("https://host/repo.zip"), null, null, "Bearer abc", null, null);
         assertEquals("Authorization", header.name());
         assertEquals("Bearer abc", header.value());
     }
@@ -72,7 +72,8 @@ class ServerAuthHeaderTest {
         final var header = ServerAuthHeader.forUrl(
                 URI.create("https://downloads.apache.org/hop/x.zip"), settings, null, null, null, null);
         assertEquals("Authorization", header.name());
-        final var expected = "Basic " + Base64.getEncoder().encodeToString("svc:secret".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        final var expected = "Basic "
+                + Base64.getEncoder().encodeToString("svc:secret".getBytes(java.nio.charset.StandardCharsets.UTF_8));
         assertEquals(expected, header.value());
     }
 
@@ -87,7 +88,10 @@ class ServerAuthHeaderTest {
 
         final var header = ServerAuthHeader.forUrl(
                 URI.create("https://repo.example.com/x.zip"), settings, null, null, null, p -> "decoded");
-        assertEquals("Basic " + Base64.getEncoder().encodeToString("svc:decoded".getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+        assertEquals(
+                "Basic "
+                        + Base64.getEncoder()
+                                .encodeToString("svc:decoded".getBytes(java.nio.charset.StandardCharsets.UTF_8)),
                 header.value());
     }
 }

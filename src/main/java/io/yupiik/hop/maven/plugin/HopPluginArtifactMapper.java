@@ -1,28 +1,27 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance
+ * Copyright (c) 2026 - Yupiik SAS - https://yupiik.io/
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package io.yupiik.hop.maven.plugin;
+
+import static java.util.Map.entry;
 
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-
-import static java.util.Map.entry;
 
 /**
  * Maps a Hop plugin id (transform or action) to the Maven artifact that ships it.
@@ -170,15 +169,15 @@ public class HopPluginArtifactMapper {
     private final Map<String, String> actionOverrides;
     private final Consumer<String> debugLog;
 
-    public HopPluginArtifactMapper(final Map<String, String> transform2ArtifactMapping,
-                                   final Map<String, String> action2ArtifactMapping,
-                                   final Consumer<String> debugLog) {
+    public HopPluginArtifactMapper(
+            final Map<String, String> transform2ArtifactMapping,
+            final Map<String, String> action2ArtifactMapping,
+            final Consumer<String> debugLog) {
         this.transformOverrides = emptyIfNull(transform2ArtifactMapping);
         this.actionOverrides = emptyIfNull(action2ArtifactMapping);
         this.transformArtifacts = merge(TRANSFORM_ARTIFACTS, this.transformOverrides);
         this.actionArtifacts = merge(ACTION_ARTIFACTS, this.actionOverrides);
-        this.debugLog = debugLog == null ? ignored -> {
-        } : debugLog;
+        this.debugLog = debugLog == null ? ignored -> {} : debugLog;
     }
 
     /**
@@ -186,7 +185,13 @@ public class HopPluginArtifactMapper {
      * then the built-in table then the default {@code hop-transform-<id>} rule.
      */
     public String transformArtifactId(final String transformPluginId) {
-        return resolve(transformPluginId, transformArtifacts, TRANSFORM_ARTIFACTS, transformOverrides, "hop-transform-", "transform");
+        return resolve(
+                transformPluginId,
+                transformArtifacts,
+                TRANSFORM_ARTIFACTS,
+                transformOverrides,
+                "hop-transform-",
+                "transform");
     }
 
     /**
@@ -197,12 +202,17 @@ public class HopPluginArtifactMapper {
         return resolve(actionPluginId, actionArtifacts, ACTION_ARTIFACTS, actionOverrides, "hop-action-", "action");
     }
 
-    private String resolve(final String pluginId, final Map<String, String> mappings,
-                           final Map<String, String> defaults, final Map<String, String> overrides,
-                           final String prefix, final String type) {
+    private String resolve(
+            final String pluginId,
+            final Map<String, String> mappings,
+            final Map<String, String> defaults,
+            final Map<String, String> overrides,
+            final String prefix,
+            final String type) {
         final var explicit = mappings.get(pluginId);
         if (explicit != null) {
-            final var source = overrides.containsKey(pluginId) ? "user override"
+            final var source = overrides.containsKey(pluginId)
+                    ? "user override"
                     : defaults.containsKey(pluginId) ? "built-in table" : "default convention";
             debugLog.accept("Mapping " + type + " '" + pluginId + "' -> '" + explicit + "' (" + source + ")");
             return explicit;

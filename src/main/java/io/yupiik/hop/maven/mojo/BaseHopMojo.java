@@ -1,23 +1,22 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance
+ * Copyright (c) 2026 - Yupiik SAS - https://yupiik.io/
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package io.yupiik.hop.maven.mojo;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+import static java.util.Collections.emptyList;
+
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -37,9 +36,7 @@ import javax.inject.Inject;
 import org.apache.hop.core.Const;
 import org.apache.hop.core.HopEnvironment;
 import org.apache.hop.core.encryption.Encr;
-import org.apache.hop.core.exception.HopException;
 import org.apache.hop.core.plugins.ActionPluginType;
-import org.apache.hop.core.plugins.IPlugin;
 import org.apache.hop.core.plugins.IPluginType;
 import org.apache.hop.core.plugins.PluginRegistry;
 import org.apache.hop.core.plugins.TransformPluginType;
@@ -57,9 +54,6 @@ import org.eclipse.aether.RepositorySystem;
 import org.eclipse.aether.RepositorySystemSession;
 import org.eclipse.aether.repository.RemoteRepository;
 import org.eclipse.aether.util.concurrency.ExecutorUtils;
-
-import static java.util.Collections.emptyList;
-import static java.util.Optional.ofNullable;
 
 /**
  * Base class for mojos that need to find Apache Hop pipelines ({@code .hpl}) and workflows
@@ -189,10 +183,11 @@ public abstract class BaseHopMojo extends AbstractMojo {
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         // resolve defaults that depend on the project (project.basedir) at execution time
-        final var source = toPath(sourceFolder != null ? sourceFolder : new java.io.File(project.getBasedir(), ""),
-                "sourceFolder");
-        final var metadata = toPath(metadataFolder != null ? metadataFolder
-                : new java.io.File(project.getBasedir(), "metadata"), "metadataFolder");
+        final var source = toPath(
+                sourceFolder != null ? sourceFolder : new java.io.File(project.getBasedir(), ""), "sourceFolder");
+        final var metadata = toPath(
+                metadataFolder != null ? metadataFolder : new java.io.File(project.getBasedir(), "metadata"),
+                "metadataFolder");
 
         // PAS 1 - collect only (no shared state mutation): reusable file list + plugin ids.
         final var files = collectDiagramFiles(source);
@@ -204,8 +199,8 @@ public abstract class BaseHopMojo extends AbstractMojo {
             for (final var file : files) {
                 final var fileTransforms = diagramPluginIds.extractTransforms(file);
                 final var fileActions = diagramPluginIds.extractActions(file);
-                getLog().debug("Auto-resolve: '" + source.relativize(file) + "' declares transforms="
-                        + fileTransforms + ", actions=" + fileActions);
+                getLog().debug("Auto-resolve: '" + source.relativize(file) + "' declares transforms=" + fileTransforms
+                        + ", actions=" + fileActions);
                 transformIds.addAll(fileTransforms);
                 actionIds.addAll(fileActions);
             }
@@ -249,8 +244,8 @@ public abstract class BaseHopMojo extends AbstractMojo {
      * a diagram, generate documentation, etc. The {@code files} are the collected {@code .hpl}
      * {@code .hwf} under {@code source}; each file's relative path is {@code source.relativize(file)}.
      */
-    protected abstract void process(final List<Path> files, final Path source,
-                                    final IHopMetadataProvider provider, final Variables variables)
+    protected abstract void process(
+            final List<Path> files, final Path source, final IHopMetadataProvider provider, final Variables variables)
             throws MojoExecutionException, MojoFailureException;
 
     /**
@@ -286,38 +281,49 @@ public abstract class BaseHopMojo extends AbstractMojo {
                 ? project.getRemoteProjectRepositories()
                 : List.of();
         // aligned on Maven's own resolver parallelism (maven.artifact.threads)
-        final var resolutionThreads = repositorySystemSession == null ? 1
+        final var resolutionThreads = repositorySystemSession == null
+                ? 1
                 : ExecutorUtils.threadCount(
                         repositorySystemSession, 1, "aether.dependencyCollector.bf.threads", "maven.artifact.threads");
-        getLog().debug("Auto-resolve: version='" + version + "', threads=" + resolutionThreads
-                + ", staging base='" + base + "', repositories=" + repositories.size());
+        getLog().debug("Auto-resolve: version='" + version + "', threads=" + resolutionThreads + ", staging base='"
+                + base + "', repositories=" + repositories.size());
         getLog().debug("Auto-resolve: " + toResolveTransforms.size() + " transform id(s) to resolve: "
                 + toResolveTransforms + ", " + toResolveActions.size() + " action id(s) to resolve: "
                 + toResolveActions);
-        final var registrar =
-                new io.yupiik.hop.maven.plugin.HopPluginRegistrar(repositorySystem, repositorySystemSession,
-                        repositories, base, registry,
-                        new io.yupiik.hop.maven.plugin.HopPluginArtifactMapper(transform2ArtifactMapping,
-                                action2ArtifactMapping, getLog()::debug), version,
-                        resolutionThreads, null, getLog()::debug);
+        final var registrar = new io.yupiik.hop.maven.plugin.HopPluginRegistrar(
+                repositorySystem,
+                repositorySystemSession,
+                repositories,
+                base,
+                registry,
+                new io.yupiik.hop.maven.plugin.HopPluginArtifactMapper(
+                        transform2ArtifactMapping, action2ArtifactMapping, getLog()::debug),
+                version,
+                resolutionThreads,
+                null,
+                getLog()::debug);
         try {
-            final var staged =
-                    registrar.resolveAndStage(toResolveTransforms, toResolveActions, Set.of(), Set.of());
+            final var staged = registrar.resolveAndStage(toResolveTransforms, toResolveActions, Set.of(), Set.of());
             if (!toResolveTransforms.isEmpty() || !toResolveActions.isEmpty()) {
-                getLog().info("Auto-resolved " + (toResolveTransforms.size() - staged.getMissingTransformIds().size())
-                        + " transform(s) and " + (toResolveActions.size() - staged.getMissingActionIds().size())
+                getLog().info("Auto-resolved "
+                        + (toResolveTransforms.size()
+                                - staged.getMissingTransformIds().size())
+                        + " transform(s) and "
+                        + (toResolveActions.size()
+                                - staged.getMissingActionIds().size())
                         + " action(s) into " + base);
             }
             return new AutoResolve(registrar, staged);
         } catch (final RuntimeException e) {
-            getLog().warn("Unable to auto-resolve the Hop plugin artifacts: " + e.getMessage()
-                    + "; add the matching hop-transform-*/hop-action-* module(s) as dependencies of the plugin.", e);
+            getLog().warn(
+                            "Unable to auto-resolve the Hop plugin artifacts: " + e.getMessage()
+                                    + "; add the matching hop-transform-*/hop-action-* module(s) as dependencies of the plugin.",
+                            e);
             return null;
         }
     }
 
-    private static Set<String> knownIds(final PluginRegistry registry,
-                                        final Class<? extends IPluginType> pluginType) {
+    private static Set<String> knownIds(final PluginRegistry registry, final Class<? extends IPluginType> pluginType) {
         final var ids = new HashSet<String>();
         for (final var plugin : registry.getPlugins(pluginType)) {
             for (final var id : plugin.getIds()) {
@@ -417,8 +423,7 @@ public abstract class BaseHopMojo extends AbstractMojo {
     }
 
     protected IHopMetadataProvider hopMetadataProvider(final Path metadata, final Variables variables) {
-        final var jsonProvider =
-                new JsonMetadataProvider(Encr.getEncoder(), metadata.toString(), variables);
+        final var jsonProvider = new JsonMetadataProvider(Encr.getEncoder(), metadata.toString(), variables);
         return new MultiMetadataProvider(Encr.getEncoder(), List.of(jsonProvider), variables);
     }
 
@@ -440,9 +445,10 @@ public abstract class BaseHopMojo extends AbstractMojo {
         try {
             final var content = Files.readString(configFile.toPath(), StandardCharsets.UTF_8);
             final var root = JsonParser.parseString(content).getAsJsonObject();
-            final var varsArray = root.has("config") && root.getAsJsonObject("config").has("variables")
-                    ? root.getAsJsonObject("config").getAsJsonArray("variables")
-                    : root.getAsJsonArray("variables");
+            final var varsArray =
+                    root.has("config") && root.getAsJsonObject("config").has("variables")
+                            ? root.getAsJsonObject("config").getAsJsonArray("variables")
+                            : root.getAsJsonArray("variables");
             if (varsArray == null) {
                 return;
             }
@@ -471,7 +477,7 @@ public abstract class BaseHopMojo extends AbstractMojo {
         return file.toPath().toAbsolutePath().normalize();
     }
 
-    protected record AutoResolve(io.yupiik.hop.maven.plugin.HopPluginRegistrar registrar,
-                                 io.yupiik.hop.maven.plugin.HopPluginRegistrar.Staged staged) {
-    }
+    protected record AutoResolve(
+            io.yupiik.hop.maven.plugin.HopPluginRegistrar registrar,
+            io.yupiik.hop.maven.plugin.HopPluginRegistrar.Staged staged) {}
 }

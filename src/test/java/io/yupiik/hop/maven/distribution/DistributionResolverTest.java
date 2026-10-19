@@ -1,20 +1,26 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance
+ * Copyright (c) 2026 - Yupiik SAS - https://yupiik.io/
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *  http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 package io.yupiik.hop.maven.distribution;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sun.net.httpserver.HttpServer;
 import io.yupiik.hop.maven.resolve.ArtifactResolver;
@@ -27,13 +33,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DistributionResolverTest {
 
@@ -62,11 +61,22 @@ class DistributionResolverTest {
         try {
             final var port = server.getAddress().getPort();
             final var resolver = new DistributionResolver(
-                    newResolver(tmp.resolve("repo-1")), null, "2.19.0", null, null, null, tmp, ignored -> {
-            }, null, true, java.time.Duration.ofMinutes(15));
-            final var target = resolver.resolve("http://127.0.0.1:" + port + "/hop/${version}/apache-hop-client-${version}.zip");
+                    newResolver(tmp.resolve("repo-1")),
+                    null,
+                    "2.19.0",
+                    null,
+                    null,
+                    null,
+                    tmp,
+                    ignored -> {},
+                    null,
+                    true,
+                    java.time.Duration.ofMinutes(15));
+            final var target =
+                    resolver.resolve("http://127.0.0.1:" + port + "/hop/${version}/apache-hop-client-${version}.zip");
             assertTrue(Files.isRegularFile(target), "archive must be downloaded");
-            assertTrue(requestedPath.get().contains("/hop/2.19.0/apache-hop-client-2.19.0.zip"),
+            assertTrue(
+                    requestedPath.get().contains("/hop/2.19.0/apache-hop-client-2.19.0.zip"),
                     "version placeholder must be substituted: " + requestedPath.get());
         } finally {
             server.stop(0);
@@ -83,11 +93,13 @@ class DistributionResolverTest {
         assertEquals("zip", c.type());
         assertNotNull(c.classifier());
         assertEquals(16, c.classifier().length());
-        assertNotEquals(DistributionResolver.cacheCoordinates(
-                        "https://downloads.apache.org/hop/2.19.0/apache-hop-client-2.19.0.zip")
+        assertNotEquals(
+                DistributionResolver.cacheCoordinates(
+                                "https://downloads.apache.org/hop/2.19.0/apache-hop-client-2.19.0.zip")
                         .classifier(),
                 DistributionResolver.cacheCoordinates(
-                        "https://mirror.apache.org/hop/2.19.0/apache-hop-client-2.19.0.zip").classifier(),
+                                "https://mirror.apache.org/hop/2.19.0/apache-hop-client-2.19.0.zip")
+                        .classifier(),
                 "a different URL must map to a different classifier");
     }
 
@@ -109,8 +121,17 @@ class DistributionResolverTest {
             final var artifactResolver = newResolver(localRepo);
             final var url = "http://127.0.0.1:" + port + "/hop/2.19.0/apache-hop-client-2.19.0.zip";
             final var resolver = new DistributionResolver(
-                    artifactResolver, null, null, null, null, null, tmp, ignored -> {
-            }, null, true, java.time.Duration.ofMinutes(15));
+                    artifactResolver,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    tmp,
+                    ignored -> {},
+                    null,
+                    true,
+                    java.time.Duration.ofMinutes(15));
             assertNotNull(resolver.resolve(url), "first call must download");
             assertEquals(1, hits.get(), "first call must hit the network exactly once");
             final var cached = resolver.resolve(url);
@@ -139,8 +160,17 @@ class DistributionResolverTest {
             final var artifactResolver = newResolver(localRepo);
             final var url = "http://127.0.0.1:" + port + "/hop/2.19.0/apache-hop-client-2.19.0.zip";
             final var resolver = new DistributionResolver(
-                    artifactResolver, null, null, null, null, null, tmp, ignored -> {
-            }, null, false, java.time.Duration.ofMinutes(15));
+                    artifactResolver,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    tmp,
+                    ignored -> {},
+                    null,
+                    false,
+                    java.time.Duration.ofMinutes(15));
             resolver.resolve(url);
             resolver.resolve(url);
             assertEquals(2, hits.get(), "with caching disabled every call must download");
@@ -165,29 +195,40 @@ class DistributionResolverTest {
             final var port = server.getAddress().getPort();
             final var url = "http://127.0.0.1:" + port + "/hop/2.19.0/apache-hop-client-2.19.0.zip";
             final var resolver = new DistributionResolver(
-                    newResolver(tmp.resolve("repo-4")), null, null, null, null, null, tmp, ignored -> {
-            }, null, false, java.time.Duration.ofSeconds(1));
+                    newResolver(tmp.resolve("repo-4")),
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    tmp,
+                    ignored -> {},
+                    null,
+                    false,
+                    java.time.Duration.ofSeconds(1));
             final var e = assertThrows(java.io.IOException.class, () -> resolver.resolve(url));
-            assertTrue(e instanceof java.net.http.HttpTimeoutException,
-                    "the request timeout must surface as HttpTimeoutException, got " + e.getClass().getName());
+            assertTrue(
+                    e instanceof java.net.http.HttpTimeoutException,
+                    "the request timeout must surface as HttpTimeoutException, got "
+                            + e.getClass().getName());
         } finally {
             server.stop(0);
         }
     }
 
     private static ArtifactResolver newResolver(final Path localRepo) throws java.io.IOException {
-        final var locator =
-                org.apache.maven.repository.internal.MavenRepositorySystemUtils.newServiceLocator();
-        locator.addService(org.eclipse.aether.spi.connector.RepositoryConnectorFactory.class,
+        final var locator = org.apache.maven.repository.internal.MavenRepositorySystemUtils.newServiceLocator();
+        locator.addService(
+                org.eclipse.aether.spi.connector.RepositoryConnectorFactory.class,
                 org.eclipse.aether.connector.basic.BasicRepositoryConnectorFactory.class);
-        locator.addService(org.eclipse.aether.spi.connector.transport.TransporterFactory.class,
+        locator.addService(
+                org.eclipse.aether.spi.connector.transport.TransporterFactory.class,
                 org.eclipse.aether.transport.file.FileTransporterFactory.class);
         final var system = locator.getService(org.eclipse.aether.RepositorySystem.class);
-        final var session =
-                org.apache.maven.repository.internal.MavenRepositorySystemUtils.newSession();
+        final var session = org.apache.maven.repository.internal.MavenRepositorySystemUtils.newSession();
         Files.createDirectories(localRepo);
-        session.setLocalRepositoryManager(system.newLocalRepositoryManager(session,
-                new org.eclipse.aether.repository.LocalRepository(localRepo.toFile())));
+        session.setLocalRepositoryManager(system.newLocalRepositoryManager(
+                session, new org.eclipse.aether.repository.LocalRepository(localRepo.toFile())));
         return new ArtifactResolver(system, session, List.of());
     }
 }
