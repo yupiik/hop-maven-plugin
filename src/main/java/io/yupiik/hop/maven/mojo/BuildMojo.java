@@ -24,6 +24,7 @@ import io.yupiik.hop.maven.resolve.ArtifactResolver;
 import io.yupiik.hop.maven.resolve.Coordinates;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -68,6 +69,17 @@ public class BuildMojo extends BaseHopMojo {
      * accepted when the value is passed raw via {@code -D} on the CLI); otherwise it is a Maven
      * coordinate ({@code groupId:artifactId:version[:type[:classifier]]}) resolved through the Maven
      * resolver. The placeholders are replaced with {@link #hopVersion}.
+     * <p>
+     * The literal value {@code scratch} (or a blank value) assembles a *scratch* distribution: no
+     * client zip is downloaded, unzipped or cached. Only the custom content (drivers, libs,
+     * javaagents, transforms, plugins, overrides and the {@link #baseDirectory} merge) is produced
+     * inside an otherwise empty {@code hop/} folder. This is useful to stack custom Hop content on
+     * top of a base distribution image (for example via Jib's {@code from} + layer filters) without
+     * re-downloading the full Hop distribution. Note that in scratch mode there is no base
+     * {@code hop-*.sh} script, so injected javaagents are staged in {@code lib/} but not wired into
+     * a launcher. The {@code run}/{@code encrypt}/{@code gui}/{@code server} goals accept the same
+     * scratch value: they then log a warning, skip the unzip and assemble only the custom content
+     * (plus your {@code baseDirectory}) so you can supply a launcher yourself and fake a distribution.
      */
     @Parameter(property = "hop.build.versionUrl",
             defaultValue = "https://downloads.apache.org/hop/${hop.version}/apache-hop-client-${hop.version}.zip")
@@ -214,27 +226,43 @@ public class BuildMojo extends BaseHopMojo {
      * {@code run}/{@code encrypt}/{@code gui}/{@code server} goals.
      */
     protected Path assembleDistribution() throws MojoExecutionException {
-        final var baseDir = baseDirectory != null
-                ? baseDirectory.toPath().toAbsolutePath().normalize()
-                : null;
         final var wd = workdirPath();
         final var hop = hopFolder != null
                 ? hopFolder.toPath().toAbsolutePath().normalize()
                 : wd.resolve("hop");
         try {
             final var zip = resolveDistributionZip(wd);
-            SecureUnzip.unzip(zip, hop, skipRootFolderOnUnzip);
-            getLog().info("Unzipped " + zip + " into " + hop);
+            if (zip == null) {
+                // scratch distribution: no base downloaded/unzipped, assemble only the custom content
+                Files.createDirectories(hop);
+                getLog().info("Scratch distribution: no base downloaded, assembling only the custom content into " + hop);
+            } else {
+                SecureUnzip.unzip(zip, hop, skipRootFolderOnUnzip);
+                getLog().info("Unzipped " + zip + " into " + hop);
+            }
 
-            final var resolver = newResolver();
-            final var builder = new DistributionBuilder(resolver, hop, getLog()::debug);
-            builder.enrich(new DistributionBuilder.EnrichmentSpec(
-                    drivers, libs, javaagents, transforms, plugins,
-                    toOverrides(), baseDir));
+            enrich(hop);
             return hop;
         } catch (final IOException e) {
             throw new MojoExecutionException("Unable to assemble the Hop distribution", e);
         }
+    }
+
+    /**
+     * Enrich an assembled (or scratch) {@code hop/} folder with the drivers, libs, javaagents,
+     * transforms, plugins, overrides and the {@link #baseDirectory} merge. Reused by {@code build}
+     * and, for a scratch/fake distribution, by the {@code run}/{@code encrypt}/{@code gui}/{@code server}
+     * goals.
+     */
+    protected void enrich(final Path hop) throws IOException {
+        final var baseDir = baseDirectory != null
+                ? baseDirectory.toPath().toAbsolutePath().normalize()
+                : null;
+        final var resolver = newResolver();
+        final var builder = new DistributionBuilder(resolver, hop, getLog()::debug);
+        builder.enrich(new DistributionBuilder.EnrichmentSpec(
+                drivers, libs, javaagents, transforms, plugins,
+                toOverrides(), baseDir));
     }
 
     /**
@@ -256,12 +284,24 @@ public class BuildMojo extends BaseHopMojo {
     }
 
     /**
-     * Resolve the distribution zip file (HTTP download or Maven coordinate) into {@code workdir}.
-     * Subclasses override it to point at a locally built/computed distribution artifact.
+     * Resolve the distribution zip file (HTTP download or Maven coordinate) into {@code workdir},
+     * or return {@code null} for a scratch distribution (see {@link #isScratch()}). Subclasses
+     * override it to point at a locally built/computed distribution artifact.
      */
     protected Path resolveDistributionZip(final Path workdir) throws IOException {
+        if (isScratch()) {
+            return null; // no base distribution, scratch mode
+        }
         final var resolver = newResolverForDownload(workdir);
         return resolver.resolve(versionUrl);
+    }
+
+    /**
+     * @return whether the distribution is a *scratch* one, i.e. the {@link #versionUrl} value is
+     *         the literal {@code scratch} or is blank: no base client is downloaded or unzipped.
+     */
+    protected boolean isScratch() {
+        return versionUrl == null || versionUrl.isBlank() || "scratch".equalsIgnoreCase(versionUrl.trim());
     }
 
     private DistributionResolver newResolverForDownload(final Path workdir) {

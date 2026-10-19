@@ -1,0 +1,606 @@
+= Bundling the distribution as a container image with Jib
+:minisite-index: 450
+:minisite-index-title: Container image (Jib)
+:minisite-index-icon: box-open
+:minisite-index-description: Turn the custom Hop distribution built by hop:build into a container image, layered for efficient push and pull with Jib.
+
+This page shows how to package the custom Apache Hop distribution produced by the
+xref:mojo/build.adoc[build] goal into a container image with the
+https://github.com/GoogleContainerTools/jib[Jib Maven plugin]. It is distribution-oriented: instead of
+a generic `java -cp` Java-application image, the image *is* the enriched Hop distribution, and the
+`jib-layer-filter-extension-maven` regroups its content into meaningful layers (base Hop, then the added
+extensions) so that pushing and pulling only moves the layers that actually change.
+
+It relies on the `build` goal's default behaviour of assembling the distribution under
+`target/hop-build/hop/`; see xref:goals.adoc[Goals] and xref:usage.adoc[Usage] for the full picture.
+
+== How it fits together
+
+The `build` goal (see xref:mojo/build.adoc[build]) downloads the stock Hop client zip, enriches it and
+assembles the result under `target/hop-build/hop/`. Concretely the folder looks like a single Hop home:
+
+* `hop-run.sh`, `hop-server.sh`, `hop-gui.sh`, ... - the launcher scripts at the distribution root,
+* `config/` - the Hop configuration (for example `config/projects`),
+* `lib/` - the Hop core and bundled libraries, plus any `<libs>` and `<javaagents>` jars injected by the goal,
+* `lib/jdbc/` - the JDBC drivers added through `<drivers>`,
+* `plugins/transforms/` - the transforms (stock and the `<transforms>` added by the goal),
+* `plugins/<category>/` - the marketplace plugins added through `<plugins>`,
+* and the content of your `baseDirectory` (`src/main/hop/distribution` by default).
+
+Jib copies that whole folder into the image at `/opt/hop` with `extraDirectories` and keeps it in a
+single *base* layer: the distribution stays intact, stock transforms and JDBC drivers included. Because
+hop:build merges the added `<drivers>`, `<javaagents>`, `<transforms>` and `<plugins>` into those *same*
+stock folders (so stock and custom are indistinguishable by path), the image does **not** try to split
+the runtime into per-extension layers. Instead the baseDirectory content (`config`, `repositories`,
+`metadata`) is layered separately as a single `hop-application` layer, so tweaking your application's
+configuration or repositories re-uploads and re-pulls only that small layer rather than the hundreds of
+MB of base Hop.
+
+.Target image layers
+[opts=header]
+|===
+|Layer |Container paths |Changes when
+|Base Hop distribution |`/opt/hop` root, `config`, `lib` (incl. stock + added drivers/agents), `plugins` (incl. stock + added transforms/plugins) |Hop version or an enrichment changes
+|hop-application |`/opt/hop/config`, `/opt/hop/repositories`, `/opt/hop/metadata` (from `src/main/hop/distribution`) |Your application's configuration, repositories or metadata change
+|===
+
+NOTE: `hop-application` is the only layer that depends on your `src/main/hop/distribution` content. If
+that folder has none of `config/`, `repositories/` or `metadata/`, this layer stays empty and is skipped
+entirely - the image is then purely the base distribution.
+
+TIP: Jib always creates a default Java-application layer under `/app` (the `appRoot`, with
+`jib-classpath-file`/`jib-main-class-file`). This image is a distribution, not a Java app, so the sample
+discards it with a layer-filter rule (`<glob>**/app/**</glob>` with no `toLayer`).
+
+== A complete pom.xml
+
+The sample below is a full, runnable `pom.xml`. Every section carries an inline comment explaining what
+it does; a separate explanation of the interesting parts follows.
+
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- The Hop project is a plain jar-less Maven project: it carries no Java sources, it only
+         drives the Hop build and the container image build. -->
+    <groupId>io.yupiik.example</groupId>
+    <artifactId>my-hop-distribution</artifactId>
+    <version>1.0.0</version>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- The Hop distribution version and the resulting image reference. -->
+        <hop.version>2.20.0</hop.version>
+        <!-- image name on your registry, without tag (added by Jib) -->
+        <image>registry.example.com/my-hop-distribution</image>
+
+        <!-- Tooling versions -->
+        <base.image>eclipse-temurin:21-jre</base.image>
+        <git-commit-id-plugin.version>10.0.1</git-commit-id-plugin.version>
+        <jib.version>3.5.2</jib.version>
+        <jib-layer-filter.version>0.3.0</jib-layer-filter.version>
+    </properties>
+
+    <build>
+        <plugins>
+            <!-- A jar-less distribution project has no compiler output, but jib requires
+                 target/classes to exist. A single marker resource in src/main/resources makes
+                 the resources plugin create it early (initialize), so a standalone
+                 `mvn initialize ... jib:dockerBuild` also works. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <id>ensure-classes-dir</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>resources</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Expose the git revision and build time as Maven properties so the OpenContainer
+                 labels are populated from the exact commit that was built. The 'revision' goal
+                 runs early (initialize) so the properties are ready for the rest of the build. -->
+            <plugin>
+                <groupId>io.github.git-commit-id</groupId>
+                <artifactId>git-commit-id-maven-plugin</artifactId>
+                <version>${git-commit-id-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>get-the-git-infos</id>
+                        <goals>
+                            <goal>revision</goal>
+                        </goals>
+                        <phase>initialize</phase>
+                    </execution>
+                </executions>
+                <configuration>
+                    <commitIdGenerationMode>full</commitIdGenerationMode>
+                </configuration>
+            </plugin>
+
+            <!-- Assemble the custom Hop distribution into target/hop-build/hop/. Bound to the
+                 package phase so it always runs before the container image is built. -->
+            <plugin>
+                <groupId>io.yupiik.hop</groupId>
+                <artifactId>hop-maven-plugin</artifactId>
+                <version>${hop-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>build-hop-distribution</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                        <configuration>
+                            <hopVersion>${hop.version}</hopVersion>
+                            <!-- your repos, metadata and run configurations, merged into /opt/hop
+                                 by the baseDirectory (default src/main/hop/distribution) -->
+                            <baseDirectory>${project.basedir}/src/main/hop/distribution</baseDirectory>
+                            <!-- added extensions, each landing in its own image layer -->
+                            <drivers>
+                                <driver>com.oracle.database.jdbc:ojdbc11:23.5.0.24.07</driver>
+                            </drivers>
+                            <libs>
+                                <lib>org.jooq:jooq:3.19.0</lib>
+                            </libs>
+                            <javaagents>
+                                <javaagent>io.opentelemetry.javaagent:opentelemetry-javaagent:2.10.0</javaagent>
+                            </javaagents>
+                            <transforms>
+                                <transform>com.acme:acme-custom-transform:1.0.0</transform>
+                            </transforms>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Build the container image from the assembled Hop distribution. -->
+            <plugin>
+                <groupId>com.google.cloud.tools</groupId>
+                <artifactId>jib-maven-plugin</artifactId>
+                <version>${jib.version}</version>
+                <dependencies>
+                    <!-- the layer-filter extension lets us split the distribution into layers -->
+                    <dependency>
+                        <groupId>com.google.cloud.tools</groupId>
+                        <artifactId>jib-layer-filter-extension-maven</artifactId>
+                        <version>${jib-layer-filter.version}</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <pluginExtensions>
+                        <pluginExtension>
+                            <implementation>
+                                com.google.cloud.tools.jib.maven.extension.layerfilter.JibLayerFilterExtension
+                            </implementation>
+                            <configuration implementation=
+                                    "com.google.cloud.tools.jib.maven.extension.layerfilter.Configuration">
+                                <filters>
+                                    <!-- drop jib's default app scaffolding (/app + classpath files):
+                                         a filter without <toLayer> discards the matched files -->
+                                    <filter>
+                                        <glob>**/app/**</glob>
+                                    </filter>
+                                    <!-- hop-application = one single layer for the whole assembled
+                                         distribution (base layer) plus everything from
+                                         src/main/hop/distribution (config, repositories, metadata).
+                                         If you have none of those folders this layer stays empty and
+                                         is skipped entirely. The last matching filter wins; omitting
+                                         <toLayer> would discard the matched files. -->
+                                    <filter>
+                                        <glob>**/hop/config/**</glob>
+                                        <toLayer>hop-application</toLayer>
+                                    </filter>
+                                    <filter>
+                                        <glob>**/hop/repositories/**</glob>
+                                        <toLayer>hop-application</toLayer>
+                                    </filter>
+                                    <filter>
+                                        <glob>**/hop/metadata/**</glob>
+                                        <toLayer>hop-application</toLayer>
+                                    </filter>
+                                </filters>
+                            </configuration>
+                        </pluginExtension>
+                    </pluginExtensions>
+
+                    <!-- base image: Hop needs a JRE, and the scripts use JAVA_HOME/HOP_JAVA_HOME -->
+                    <from>
+                        <image>${base.image}</image>
+                    </from>
+
+                    <!-- target image; override on the CLI with -Dimage=... -->
+                    <to>
+                        <image>${image}</image>
+                    </to>
+
+                    <!-- Copy the assembled Hop distribution into the image at /opt/hop (base layer), and
+                             re-add the baseDirectory content so it becomes its own layer -->
+                    <extraDirectories>
+                        <paths>
+                            <path>
+                                <from>${project.build.directory}/hop-build/hop</from>
+                                <into>/opt/hop</into>
+                            </path>
+                            <path>
+                                <from>${project.basedir}/src/main/hop/distribution</from>
+                                <into>/opt/hop</into>
+                            </path>
+                        </paths>
+                        <!-- jib defaults file perms to 644; make the launcher scripts executable.
+                             Add an entry for every executable script you merge via baseDirectory
+                             too - jib does not inherit the source bit -->
+                        <permissions>
+                            <permission>
+                                <file>/opt/hop/*.sh</file>
+                                <mode>755</mode>
+                            </permission>
+                            <permission>
+                                <file>/opt/hop/hop</file>
+                                <mode>755</mode>
+                            </permission>
+                        </permissions>
+                    </extraDirectories>
+
+                    <container>
+                        <!-- launch hop-run: pass the pipeline/workflow and run config as args,
+                             e.g. docker run ... my-image -f my-pipeline.hpl -r local -->
+                        <entrypoint>/opt/hop/hop-run.sh</entrypoint>
+                        <workingDirectory>/opt/hop</workingDirectory>
+                        <environment>
+                            <JAVA_HOME>/opt/java/openjdk</JAVA_HOME>
+                            <HOP_PROJECT_FOLDER>/opt/hop</HOP_PROJECT_FOLDER>
+                        </environment>
+                        <!-- runs as root by default; override with your own user for hardening -->
+                        <user>root:root</user>
+                        <!-- a container usually runs one job or a server, so no fixed ports are
+                             needed here; uncomment for the Hop server goal:
+                        <ports>
+                            <port>8080</port>
+                        </ports>
+                        -->
+
+                        <!-- reproducible image: fixed timestamps so repeated builds of the same
+                             source produce the same digest -->
+                        <creationTime>EPOCH</creationTime>
+                        <filesModificationTime>EPOCH_PLUS_SECOND</filesModificationTime>
+                        <format>OCI</format>
+
+                        <!-- OpenContainer metadata. The base image already declares
+                             org.opencontainers.image.created and .description, which eclipse-temurin
+                             inherits from its Ubuntu base, so those two are not overridden here. -->
+                        <labels>
+                            <org.opencontainers.image.title>My Hop Distribution</org.opencontainers.image.title>
+                            <org.opencontainers.image.version>${project.version}</org.opencontainers.image.version>
+                            <org.opencontainers.image.url>https://github.com/my-org/my-hop-distribution</org.opencontainers.image.url>
+                            <org.opencontainers.image.source>https://github.com/my-org/my-hop-distribution</org.opencontainers.image.source>
+                            <org.opencontainers.image.vendor>My Organisation</org.opencontainers.image.vendor>
+                            <org.opencontainers.image.licenses>Apache-2.0</org.opencontainers.image.licenses>
+                            <org.opencontainers.image.revision>${git.commit.id.abbrev}</org.opencontainers.image.revision>
+                        </labels>
+                    </container>
+                </configuration>
+                <executions>
+                    <!-- bind dockerBuild to the package phase so a single `mvn package` builds
+                         the image: initialize (git + classes) -> process-resources -> package
+                         (hop:build, then jib:dockerBuild). Skip per-run with -Djib.skip. -->
+                    <execution>
+                        <id>docker-build</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>dockerBuild</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+----
+
+NOTE: the sample lists `src/main/hop/distribution` twice among the `extraDirectories` paths - once
+through the base layer (because `hop:build` merges the `baseDirectory` into `target/hop-build/hop`, so
+your config/repositories/metadata are already part of it) and once again as a dedicated `<path>` entry
+so the layer-filter can isolate them into the `hop-application` layer. That "re-add" is deliberate: it
+avoids excluding Hop's own base `config/`, `repositories/` and `metadata/` from the base layer.
+If you prefer no duplication, drop the second `<path>` and add `<excludes>` to the first one (jib
+matches the globs against the *source-relative* path of that `from` directory):
+
+[source,xml]
+----
+<path>
+  <from>${project.build.directory}/hop-build/hop</from>
+  <into>/opt/hop</into>
+  <excludes>
+    <exclude>config/**</exclude>
+    <exclude>repositories/**</exclude>
+    <exclude>metadata/**</exclude>
+  </excludes>
+</path>
+<path>
+  <from>${project.basedir}/src/main/hop/distribution</from>
+  <into>/opt/hop</into>
+</path>
+----
+
+Trade-off: the excludes remove those sub-paths from the base layer *entirely*, Hop's own stock config
+included. Prefer them when the folders are supplied by a separate base image (the scratch + `from`
+pattern below) or when Hop's stock config is not needed at runtime.
+
+== Explaining the interesting parts
+
+=== The layer-filter extension
+
+The `jib-layer-filter-extension-maven` is added as a dependency of the Jib plugin and activated through
+`pluginExtensions`. Its `filters` operate on the *container paths* of every file Jib puts in the image
+(the filter globs in the sample start with `/opt/hop/...`), and regroup them into the named layers
+described in the table at the top of this page.
+
+Two rules matter here:
+
+* a file not matched by any filter stays in the default (base Hop distribution) layer. That is exactly
+  what keeps the whole distribution - stock transforms, JDBC drivers and the added `<drivers>`,
+  `<javaagents>`, `<transforms>` and `<plugins>` - together in one big layer;
+* a filter *without* `toLayer` *discards* its matches. That is how the sample removes Jib's default
+  `/app` scaffolding (`<glob>**/app/**</glob>`).
+
+NOTE: hop:build writes the added JDBC drivers, javaagent jars, transforms and plugins into the *same*
+stock folders (`lib/jdbc/`, `lib/`, `plugins/transforms/`, `plugins/<category>/`), so stock and custom
+content are not distinguishable by path. Trying to split them into separate layers would therefore drag
+the stock drivers/transforms along too. The sample avoids this collision by keeping the whole
+distribution in the base layer and layering only the `hop-application` content (config, repositories,
+metadata from `src/main/hop/distribution`), which lives in dedicated paths. If you want fine-grained
+cacheable layers per added extension, author that custom content under your own
+`src/main/hop/distribution` sub-path and extend the `<filters>` list accordingly.
+
+NOTE: Jib does not let you *name* layers. Every layer Jib adds shows the same generic
+`jib-maven-plugin:<version>` in the `dive`/`docker history` output; the `toLayer` names above only group
+the files and never appear there. Identify the `hop-application` layer by its small size (MB) and by
+selecting it in `dive` to see `/opt/hop/config`, `/opt/hop/repositories` and `/opt/hop/metadata`.
+
+=== Inspecting the layers with dive
+
+To confirm the layering is what you expect, use https://github.com/wagoodman/dive[dive] on the built
+image:
+
+[source,bash]
+----
+dive hop-distribution:1.0.0
+----
+
+dive lists the image layers and lets you browse the file tree of each one. Verify that the `hop-application`
+layer only carries your config/repositories/metadata, that the base distribution layer holds the rest of
+`/opt/hop`, and that there is no stray `/app` directory.
+
+== Stacking custom content on a base image (scratch distribution)
+
+The base image above embeds a *full* Hop distribution. When you only need to add custom content (drivers,
+javaagents, plugins/transforms, configuration) on top of an already-built Hop image, re-downloading and
+re-unzipping the whole distribution for every app build is wasteful. Instead use the plugin's *scratch*
+distribution: set `versionUrl` to the literal value `scratch` (xref:mojo/build.adoc[build]) and no base
+client is downloaded or unzipped - only the custom content is assembled under `target/hop-build/hop`,
+ready to be layered on a base image with Jib.
+
+The stack is then:
+
+* a *base* project (built once) that runs a normal `hop:build` and the Jib configuration above, pushing
+  the full distribution image, e.g. `registry.example.com/my-hop-base:<hopVersion>`; and
+* an *application* project that uses `scratch`, points Jib's `from` at that base image and layers only
+  its custom content.
+
+The application project differs in the `hop-maven-plugin` and `jib-maven-plugin` configuration:
+
+[source,xml]
+----
+<plugin>
+  <groupId>io.yupiik.hop</groupId>
+  <artifactId>hop-maven-plugin</artifactId>
+  <configuration>
+    <!-- no base is downloaded: only the custom content is assembled -->
+    <versionUrl>scratch</versionUrl>
+    <baseDirectory>${project.basedir}/src/main/hop/distribution</baseDirectory>
+    <packageDistribution>false</packageDistribution>
+    <attach>false</attach>
+    <drivers>
+      <driver>com.oracle.database.jdbc:ojdbc11:23.5.0.24.07</driver>
+    </drivers>
+    <javaagents>
+      <javaagent>io.opentelemetry.javaagent:opentelemetry-javaagent:2.10.0</javaagent>
+    </javaagents>
+    <transforms>
+      <transform>com.acme:acme-custom-transform:1.0.0</transform>
+    </transforms>
+  </configuration>
+</plugin>
+----
+
+[source,xml]
+----
+<plugin>
+  <groupId>com.google.cloud.tools</groupId>
+  <artifactId>jib-maven-plugin</artifactId>
+  <dependencies>
+    <dependency>
+      <groupId>com.google.cloud.tools</groupId>
+      <artifactId>jib-layer-filter-extension-maven</artifactId>
+      <version>${jib-layer-filter.version}</version>
+    </dependency>
+  </dependencies>
+  <configuration>
+    <pluginExtensions>
+      <pluginExtension>
+        <implementation>
+          com.google.cloud.tools.jib.maven.extension.layerfilter.JibLayerFilterExtension
+        </implementation>
+        <configuration implementation=
+                "com.google.cloud.tools.jib.maven.extension.layerfilter.Configuration">
+          <filters>
+            <filter><glob>**/app/**</glob></filter>
+            <filter>
+              <glob>**/hop/lib/jdbc/**</glob>
+              <toLayer>hop-jdbc-agents</toLayer>
+            </filter>
+            <filter>
+              <glob>**/hop/lib/*javaagent*.jar</glob>
+              <toLayer>hop-jdbc-agents</toLayer>
+            </filter>
+            <filter>
+              <glob>**/hop/plugins/**</glob>
+              <toLayer>hop-plugins</toLayer>
+            </filter>
+            <filter>
+              <glob>**/hop/config/**</glob>
+              <toLayer>hop-application</toLayer>
+            </filter>
+            <filter>
+              <glob>**/hop/repositories/**</glob>
+              <toLayer>hop-application</toLayer>
+            </filter>
+            <filter>
+              <glob>**/hop/metadata/**</glob>
+              <toLayer>hop-application</toLayer>
+            </filter>
+          </filters>
+        </configuration>
+      </pluginExtension>
+    </pluginExtensions>
+
+    <!-- the base image is the already-built full Hop distribution -->
+    <from>
+      <image>registry.example.com/my-hop-base:${hop.version}</image>
+    </from>
+    <to>
+      <image>${image}-app</image>
+    </to>
+
+    <!-- layer only the scratch custom content on top of /opt/hop -->
+    <extraDirectories>
+      <paths>
+        <path>
+          <from>${project.build.directory}/hop-build/hop</from>
+          <into>/opt/hop</into>
+        </path>
+      </paths>
+    </extraDirectories>
+
+    <container>
+      <entrypoint>INHERIT</entrypoint>
+      <creationTime>EPOCH</creationTime>
+      <filesModificationTime>EPOCH_PLUS_SECOND</filesModificationTime>
+      <format>Docker</format>
+      <labels>
+        <org.opencontainers.image.revision>${git.commit.id.abbrev}</org.opencontainers.image.revision>
+      </labels>
+    </container>
+  </configuration>
+</plugin>
+----
+
+Interesting details:
+
+* `from` is the base Hop image rather than the JDK, so Jib layers your custom content on top of the
+  existing full distribution instead of re-packaging it.
+* the layer-filter creates three app layers: `hop-jdbc-agents` (jdbc drivers + javaagents), `hop-plugins`
+  (transforms/plugins) and `hop-application` (config, repositories, metadata). The `**/app/**` rule
+  discards Jib's default app scaffolding.
+* `entrypoint=INHERIT` keeps the base image's launcher (for example `hop-run.sh`); pass pipeline/workflow
+  and run configuration as container arguments.
+* because there is no base in a scratch build, injected javaagents are staged in `lib/` but are not wired
+  into a `hop-*.sh` launcher - configure them through the base image or Jib's `container.jvmFlags`/environment
+  instead.
+
+=== The git commit id plugin
+
+`git-commit-id-maven-plugin` binds its `revision` goal to the `initialize` phase, which makes the git
+properties available to the rest of the build. The sample uses `org.opencontainers.image.revision` to
+record the short commit id (`${git.commit.id.abbrev}`), giving every image a traceable origin.
+
+NOTE: the git properties are only populated when the `initialize` phase actually runs. They are filled
+during a normal `mvn package`, and also when you invoke the standalone goals through `initialize` as
+shown below (`mvn initialize ... jib:dockerBuild`). A project checked out from git is expected; when the
+properties are undefined (for example a bare `jib:dockerBuild` in a fresh process with no `initialize`),
+Jib fails with `labels map contains null values`.
+
+=== Reproducible images
+
+`creationTime=EPOCH` and `filesModificationTime=EPOCH_PLUS_SECOND` (both Jib defaults) pin the image
+and file timestamps, so building the exact same commit twice yields the *same digest* (the container
+`Created` time becomes `1970-01-01T00:00:00Z`). Combined with the `revision` label above, you get both
+reproducibility and provenance.
+
+=== A note on the base image labels
+
+`eclipse-temurin` images are built from an Ubuntu base that already declares
+`org.opencontainers.image.created` and `org.opencontainers.image.description`. Those *two* labels are
+inherited from the base image and are not overridden by the `<labels>` block in the sample - the other
+OpenContainer labels (`title`, `version`, `source`, `vendor`, `licenses`, `revision`) are set as usual.
+If you need custom `created` or `description` values, start from a base image that does not set them
+(for example a plain `eclipse-temurin` build with those labels stripped).
+
+=== Running the image
+
+Because `jib:dockerBuild` is bound to the `package` phase (after `hop:build`), a single command assembles
+the distribution and builds the image into the local Docker daemon:
+
+[source,bash]
+----
+mvn package
+----
+
+`jib:dockerBuild`'s `extraDirectories` points at the assembled `target/hop-build/hop/`. That folder is
+produced only by the `hop:build` goal, so a bare standalone `jib:dockerBuild` on a clean tree fails with
+`"from" directory that doesn't exist locally` until the distribution has been assembled once. To re-build
+just the image (reusing the existing distribution) after you have run `mvn package` once:
+
+[source,bash]
+----
+mvn initialize jib:dockerBuild
+----
+
+The `initialize` phase re-runs git-commit-id (git labels) and the resources plugin (which keeps
+`target/classes` present - Jib requires it). Then run a pipeline headlessly (the entrypoint is
+`hop-run.sh`, so `-f` is the pipeline/workflow file and `-r` the run configuration):
+
+[source,bash]
+----
+docker run --rm \
+  -v "$PWD/repositories:/opt/hop/repositories:ro" \
+  -v "$PWD/metadata:/opt/hop/metadata:ro" \
+  registry.example.com/my-hop-distribution:1.0.0 \
+  -f /opt/hop/repositories/my-pipeline.hpl -r local
+----
+
+volume mounts make your pipelines, metadata and run configurations available inside the container
+without baking them into a rebuild. To push the image to a registry instead of the Docker daemon, bind
+`jib:build` to a phase (or run it after `package`):
+
+[source,bash]
+----
+mvn package -Djib.skip -Djib.to.image=registry.example.com/my-hop-distribution:latest -Dimage=... 
+mvn -Dimage=registry.example.com/my-hop-distribution:latest initialize jib:build
+----
+
+`-Dimage=...` overrides `to.image`, and `-Djib.to.tags=v1,v2` adds extra tags. When your CI has no
+Docker daemon, `jib:buildTar` writes an image tarball (into `target/jib-image.tar` by default) that you
+can `docker load` elsewhere. You can disable the phase-bound `dockerBuild` for a normal build with
+`-Djib.skip`.
+
+TIP: start the Hop server instead of a one-shot run by overriding the entrypoint on the CLI:
+`docker run --entrypoint /opt/hop/hop-server.sh ...` (and expose the server port).
+
+== Next steps
+
+See xref:mojo/build.adoc[build] for every distribution enrichment parameter, xref:goals.adoc[Goals]
+for the other goals, and the https://github.com/GoogleContainerTools/jib[Jib documentation] and
+https://github.com/GoogleContainerTools/jib-extensions/tree/master/first-party/jib-layer-filter-extension-maven[layer-filter extension]
+for the full configuration surface.

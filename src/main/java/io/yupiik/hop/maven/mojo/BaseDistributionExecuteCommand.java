@@ -98,8 +98,19 @@ public abstract class BaseDistributionExecuteCommand extends BuildMojo {
         final var exploded = workdir.resolve("exploded");
         try {
             final var zip = resolveDistributionZip(workdir);
-            SecureUnzip.unzip(zip, exploded, true);
-            getLog().info("Unpacked " + zip + " into " + exploded);
+            if (zip == null) {
+                // scratch/fake distribution: no base to unzip; warn and assemble only the custom
+                // content (drivers, agents, plugins, baseDirectory) so a user can provide a launcher
+                // e.g. via src/main/hop/distribution and have it made executable, just like build.
+                getLog().warn("Scratch distribution: no base was unzipped; make sure a launcher such as "
+                        + scriptBaseName() + (isWindows() ? ".bat" : ".sh")
+                        + " is provided (via src/main/hop/distribution or the repository merge) for this goal to run.");
+                Files.createDirectories(exploded);
+                enrich(exploded);
+            } else {
+                SecureUnzip.unzip(zip, exploded, true);
+                getLog().info("Unpacked " + zip + " into " + exploded);
+            }
             mergeRepository(exploded);
             runScript(exploded);
         } catch (final IOException e) {
