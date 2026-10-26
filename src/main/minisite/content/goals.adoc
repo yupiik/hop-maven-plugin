@@ -17,7 +17,8 @@ SVG or Mermaid diagrams, headlessly, honoring include/exclude patterns and the p
 
 xref:mojo/generate-doc.adoc[hop:generate-doc] - produces a documentation page per Hop file (overview,
 parameters, steps and flow), an index derived from the Hop files themselves, optional image rendering
-and an LLM-friendly Markdown + `llms.txt` mirror.
+and an LLM-friendly Markdown + `llms.txt` mirror. Human prose is supplied per-artefact from
+`src/main/hop/documentation`, keeping the narrative order of that file (see xref:usage.adoc[Usage]).
 
 == Assemble a distribution
 

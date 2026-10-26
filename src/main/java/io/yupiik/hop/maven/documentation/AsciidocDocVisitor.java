@@ -20,6 +20,7 @@ import io.yupiik.hop.maven.documentation.DocSections.DiagramSection;
 import io.yupiik.hop.maven.documentation.DocSections.ExtraSection;
 import io.yupiik.hop.maven.documentation.DocSections.FlowSection;
 import io.yupiik.hop.maven.documentation.DocSections.OverviewSection;
+import io.yupiik.hop.maven.documentation.DocSections.ProseSection;
 import io.yupiik.hop.maven.documentation.DocSections.ScriptSection;
 import io.yupiik.hop.maven.documentation.DocSections.Section;
 import io.yupiik.hop.maven.documentation.DocSections.StepsSection;
@@ -136,6 +137,9 @@ public class AsciidocDocVisitor extends DocVisitor {
             heading(out, titles.getOverview() == null ? overview.title() : titles.getOverview());
             out.write('\n');
             out.write(overview.text());
+            out.write('\n');
+        } else if (section instanceof ProseSection prose) {
+            out.write(prose.text());
             out.write('\n');
         } else if (section instanceof ConfigurationSection configuration) {
             heading(out, titles.getConfiguration());

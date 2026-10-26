@@ -26,6 +26,14 @@ import java.util.List;
  * {@link #script} (launch/run snippet), extra {@link #extraSections}, the one-line {@link #indexRole}
  * shown in the generated index, the {@link #indexOrder} and an optional {@link #diagramReference}
  * override.
+ * <p>
+ * When the enrichment comes from a documentation file (see
+ * {@code io.yupiik.hop.maven.documentation.DocFileLoader}) the original body order is preserved in
+ * {@link #blocks}. The {@link #overview}, {@link #script} and {@link #extraSections} are then derived
+ * views of that body kept for backward compatibility; {@link DocSections}
+ * {@code io.yupiik.hop.maven.documentation.DocVisitor} uses {@link #blocks} to render the narrative
+ * thread in the order it was written, resolving the built-in section anchors
+ * ({@code :configuration}, {@code :steps}, {@code :flow}, {@code :diagram}).
  */
 public class Enrichment {
 
@@ -37,6 +45,7 @@ public class Enrichment {
     private String indexRole;
     private String diagramReference;
     private List<ExtraSection> extraSections = List.of();
+    private List<Block> blocks;
 
     public String getName() {
         return name;
@@ -100,6 +109,39 @@ public class Enrichment {
 
     public void setExtraSections(final List<ExtraSection> extraSections) {
         this.extraSections = extraSections == null ? List.of() : extraSections;
+    }
+
+    /**
+     * The ordered body of the documentation file, when the enrichment was loaded from
+     * {@code src/main/hop/documentation/<name>.adoc}. {@code null} for inline {@code <enrichments>}.
+     * When present, the section renderer follows this order (and resolves the built-in anchors) instead
+     * of the canonical {@link #getOverview()}/{@link #getScript()}/{@link #getExtraSections()} order.
+     */
+    public List<Block> getBlocks() {
+        return blocks;
+    }
+
+    public void setBlocks(final List<Block> blocks) {
+        this.blocks = blocks;
+    }
+
+    /**
+     * An ordered piece of a documentation file body, preserving the source narrative order. A subset
+     * (see {@code DocFileLoader}) can reference the generated sections through {@link Generated} anchors.
+     */
+    public sealed interface Block permits Block.Overview, Block.Script, Block.Section, Block.Generated {
+
+        /** The leading prose rendered as the page "overview" (no heading/role is added by the author). */
+        record Overview(String text) implements Block {}
+
+        /** A launch/run script plus any prose trailing it in the same section. */
+        record Script(String script, String trailingProse) implements Block {}
+
+        /** A free-form section (nested {@code ===} headings and code blocks kept verbatim). */
+        record Section(String title, String content) implements Block {}
+
+        /** Positions one of the generated sections (configuration/steps/flow/diagram) in the thread. */
+        record Generated(String section) implements Block {}
     }
 
     /** A user-supplied free-form section appended to the generated page. */

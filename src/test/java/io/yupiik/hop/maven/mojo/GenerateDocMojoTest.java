@@ -193,6 +193,82 @@ class GenerateDocMojoTest {
     }
 
     @Test
+    void preservesSourceThreadWithGeneratedAnchors() throws Exception {
+        final var source = tmp.resolve("srcT");
+        Files.createDirectories(source);
+        Files.writeString(source.resolve("TRACED.hpl"), """
+                <pipeline>
+                  <info>
+                    <name>TRACED</name>
+                    <description>A traced pipeline.</description>
+                    <parameters>
+                      <parameter><name>p1</name><description>Param one</description><default_value>1</default_value></parameter>
+                    </parameters>
+                  </info>
+                  <order><hop><from>A</from><to>B</to><enabled>Y</enabled></hop></order>
+                  <transform><name>A</name><type>Dummy</type><description>Alpha.</description></transform>
+                  <transform><name>B</name><type>Dummy</type><description>Beta.</description></transform>
+                </pipeline>
+                """);
+        final var docFolder = tmp.resolve("hop-doc-t");
+        Files.createDirectories(docFolder);
+        Files.writeString(docFolder.resolve("TRACED.adoc"), """
+                = TRACED
+                :hop-index-role: Role T.
+
+                The role prose.
+
+                == :configuration
+
+                == Mon analyse
+
+                Analyse libre.
+
+                === Sous note
+
+                Detail du sous titre.
+
+                == Script de lancement
+
+                [source,bash]
+                ----
+                hop-run.sh -f TRACED.hpl
+                ----
+
+                Remarque apres le lancement.
+
+                == :diagram
+                """);
+
+        final var output = tmp.resolve("outT");
+        final var mojo = mojo(output);
+        mojo.enrichmentLocation = docFolder.toFile();
+        mojo.failIfMissing = true;
+        callProcess(mojo, source, output);
+
+        final var page = Files.readString(output.resolve("TRACED.adoc"));
+        // the thread: overview, then generated configuration placeholder, then free analysis section,
+        // then script (+ trailing remark), then generated diagram placeholder.
+        final var overview = page.indexOf("The role prose.");
+        final var config = page.indexOf("== Configuration");
+        final var analysis = page.indexOf("Mon analyse");
+        final var script = page.indexOf("== Launch");
+        final var remark = page.indexOf("Remarque apres le lancement.");
+        final var diagram = page.indexOf("== Diagram");
+        assertTrue(overview >= 0, "overview required");
+        assertTrue(config >= 0, "configuration section required");
+        assertTrue(analysis >= 0, "analysis section required");
+        assertTrue(script >= 0, "script section required");
+        assertTrue(remark >= 0, "trailing remark must be rendered");
+        assertTrue(diagram >= 0, "diagram section required");
+        assertTrue(
+                overview < config && config < analysis && analysis < script && script < remark && remark < diagram,
+                "sections must follow the source thread order, got indexes: overview=" + overview + ", config="
+                        + config + ", analysis=" + analysis + ", script=" + script + ", remark=" + remark
+                        + ", diagram=" + diagram);
+    }
+
+    @Test
     void failsWhenDocFileMissingAndFailIfMissingEnabled() throws Exception {
         final var source = tmp.resolve("srcF");
         Files.createDirectories(source);

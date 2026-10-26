@@ -34,10 +34,14 @@ public record DocSections(String title, List<Section> sections) {
                     FlowSection,
                     DiagramSection,
                     ScriptSection,
-                    ExtraSection {}
+                    ExtraSection,
+                    ProseSection {}
 
     /** Free-form prose (the "role"/"objectif" section). Title may be null to use the renderer default. */
     public record OverviewSection(String title, String text) implements Section {}
+
+    /** Plain prose without any heading (e.g. a paragraph trailing a launch script). */
+    public record ProseSection(String text) implements Section {}
 
     /** The declared parameters, rendered as a table. */
     public record ConfigurationSection(List<Parameter> parameters) implements Section {}

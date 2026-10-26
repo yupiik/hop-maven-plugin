@@ -60,6 +60,16 @@ import org.apache.maven.plugins.annotations.Parameter;
  * human-written prose and ordering. When {@link #includeImage} is enabled the {@code render} diagram
  * logic is reused to also emit the image files next to the docs; when {@link #includeMd} is enabled
  * the pages are mirrored as Markdown plus an {@code llms.txt} file (see https://llmstxt.org).
+ * <p>
+ * The human prose is supplied either inline through {@link #enrichments} or, by convention, through a
+ * per-artefact AsciiDoc file in {@link #enrichmentLocation} ({@code src/main/hop/documentation}). A
+ * documentation file keeps the narrative order of the page: its overview (the prose before the first
+ * {@code ==}), its {@code ==} sections and the launch script are rendered in the order they are
+ * written, and the generated sections (configuration, steps, flow, diagram) can be placed exactly where
+ * the thread needs them with a reserved heading {@code == :configuration}, {@code == :steps},
+ * {@code == :flow} or {@code == :diagram}. Prose that follows a heading stays under it and nested
+ * {@code ===} headings are preserved. Inline {@link #enrichments} (no ordered file body) keep the
+ * canonical order Overview, Configuration, Steps, Flow, Diagram, Script, then the extra sections.
  */
 @Mojo(name = "generate-doc", requiresProject = false, threadSafe = true)
 public class GenerateDocMojo extends BaseHopMojo {

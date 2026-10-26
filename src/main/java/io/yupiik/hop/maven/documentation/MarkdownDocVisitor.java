@@ -20,6 +20,7 @@ import io.yupiik.hop.maven.documentation.DocSections.DiagramSection;
 import io.yupiik.hop.maven.documentation.DocSections.ExtraSection;
 import io.yupiik.hop.maven.documentation.DocSections.FlowSection;
 import io.yupiik.hop.maven.documentation.DocSections.OverviewSection;
+import io.yupiik.hop.maven.documentation.DocSections.ProseSection;
 import io.yupiik.hop.maven.documentation.DocSections.ScriptSection;
 import io.yupiik.hop.maven.documentation.DocSections.Section;
 import io.yupiik.hop.maven.documentation.DocSections.StepsSection;
@@ -55,6 +56,9 @@ public class MarkdownDocVisitor extends DocVisitor {
         if (section instanceof OverviewSection overview) {
             out.write("## " + overview.title() + "\n\n");
             out.write(overview.text());
+            out.write("\n\n");
+        } else if (section instanceof ProseSection prose) {
+            out.write(prose.text());
             out.write("\n\n");
         } else if (section instanceof ConfigurationSection configuration) {
             out.write("## Configuration\n\n");

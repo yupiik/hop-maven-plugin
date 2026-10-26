@@ -16,6 +16,7 @@
 package io.yupiik.hop.maven.documentation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -98,5 +99,113 @@ class DocFileLoaderTest {
                 java.util.List.of(),
                 java.util.List.of());
         assertNull(new DocFileLoader(tmp.toAbsolutePath().normalize()).load(subject));
+    }
+
+    @Test
+    void preservesSourceOrderAndNestedHeadings() throws Exception {
+        final var adoc = tmp.resolve("TRACED.adoc");
+        Files.writeString(adoc, """
+                = TRACED
+                :hop-index-order: 1
+
+                The leading role.
+
+                == :configuration
+
+                (the generated configuration table lands here)
+
+                == Premiere section
+
+                Premiere prose.
+
+                === Sous titre
+
+                prose du sous titre.
+
+                == Script de lancement
+
+                [source,bash]
+                ----
+                hop-run.sh -f TRACED.hpl
+                ----
+
+                Note apres le script.
+
+                == Derniere section
+
+                Derniere prose.
+                """);
+
+        final var subject = new DocSubject(
+                "TRACED",
+                DocSubject.Kind.PIPELINE,
+                "TRACED.hpl",
+                "",
+                "",
+                java.util.List.of(),
+                java.util.List.of(),
+                java.util.List.of());
+        final var enrichment = new DocFileLoader(tmp.toAbsolutePath().normalize()).load(subject);
+
+        assertEquals("The leading role.", enrichment.getOverview());
+        final var blocks = enrichment.getBlocks();
+        assertEquals(4, blocks.size(), "blocks must preserve the body order, got: " + blocks);
+        // generated anchor then two free sections then script (with trailing prose) then last free section
+        assertEquals(new Enrichment.Block.Generated("configuration"), blocks.get(0));
+        assertEquals(Enrichment.Block.Section.class, blocks.get(1).getClass());
+        assertEquals("Premiere section", ((Enrichment.Block.Section) blocks.get(1)).title());
+        assertEquals(Enrichment.Block.Script.class, blocks.get(2).getClass());
+        final var script = (Enrichment.Block.Script) blocks.get(2);
+        assertTrue(script.script().contains("hop-run.sh -f TRACED.hpl"), "script code expected");
+        assertEquals("Note apres le script.", script.trailingProse(), "prose under the script section must be kept");
+        assertEquals(Enrichment.Block.Section.class, blocks.get(3).getClass());
+        assertEquals("Derniere section", ((Enrichment.Block.Section) blocks.get(3)).title());
+        // nested === heading must be preserved inside the "Premiere section" extra content
+        final var first = (Enrichment.Block.Section) blocks.get(1);
+        assertTrue(
+                first.content().contains("=== Sous titre"),
+                "nested === heading must be preserved, got: " + first.content());
+        assertTrue(first.content().contains("prose du sous titre."), "prose under the === must be kept");
+        // overview must NOT contain the trailing prose (bug 1 regression guard)
+        assertFalse(
+                enrichment.getOverview().contains("apres le script"),
+                "trailing prose must not be hoisted into overview");
+    }
+
+    @Test
+    void buildsBackwardCompatibleViewsFromBlocks() throws Exception {
+        final var adoc = tmp.resolve("BACKCOMPAT.adoc");
+        Files.writeString(adoc, """
+                = BACKCOMPAT
+                :hop-index-role: Role X.
+
+                Overview prose.
+
+                == Script de lancement
+
+                [source,bash]
+                ----
+                hop-run.sh
+                ----
+
+                == Extra section
+
+                Extra prose.
+                """);
+        final var subject = new DocSubject(
+                "BACKCOMPAT",
+                DocSubject.Kind.PIPELINE,
+                "BACKCOMPAT.hpl",
+                "",
+                "",
+                java.util.List.of(),
+                java.util.List.of(),
+                java.util.List.of());
+        final var enrichment = new DocFileLoader(tmp.toAbsolutePath().normalize()).load(subject);
+
+        assertTrue(enrichment.getScript().contains("hop-run.sh"), "script view must be derived from the block");
+        assertEquals(1, enrichment.getExtraSections().size(), "one extra section expected");
+        assertEquals("Extra section", enrichment.getExtraSections().get(0).getTitle());
+        assertTrue(enrichment.getExtraSections().get(0).getContent().contains("Extra prose."));
     }
 }

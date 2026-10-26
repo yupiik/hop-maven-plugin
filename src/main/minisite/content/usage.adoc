@@ -117,6 +117,49 @@ optionally the diagram images and an `llms.txt` mirror), derived directly from t
 TIP: point `outputDirectory` at a `src/main/minisite/content/...` folder to feed the generated pages
 straight into a yupiik minisite, exactly like the reference pages you are reading now.
 
+=== Enriching the generated pages from `src/main/hop/documentation`
+
+The pages are derived from the Hop files, but the human prose (role/objective, launch snippet, notes)
+is yours. By convention `generate-doc` reads a per-artefact AsciiDoc file from `enrichmentLocation`
+(default `src/main/hop/documentation/<flowName>.adoc`); inline `<enrichments>` entries fall back or
+override it. The index metadata is carried by document attributes:
+
+[source,asciidoc]
+----
+= T_SYNC_LOAD
+:hop-index-role: Phase 2 : extraction partitionnee source.
+:hop-index-order: 7
+
+T_SYNC_LOAD est la phase 2 de l'archivage (la copie des donnees de la partition).
+
+== Script de lancement
+
+[source,bash]
+.....
+hop-run.sh -f utilities/oracle_sync/T_SYNC_LOAD.hpl -r local
+.....
+
+== Voir aussi
+
+* link:../design.html[Design]
+----
+
+The body keeps the narrative order of the page: the prose before the first `==` becomes the overview,
+each `==` section and the launch script are rendered in the order they were written, prose that follows
+a heading stays under it, and nested `===` headings are preserved (nothing is re-sorted to the end).
+To place one of the generated sections (configuration, steps, flow, diagram) exactly where the thread
+needs it, write a reserved heading at that spot:
+
+[source,asciidoc]
+----
+== :configuration
+----
+
+The reserved headings are `:configuration`, `:steps`, `:flow` and `:diagram`. Any generated section
+that is not anchored is appended after the doc thread in that canonical order. With an inline
+`<enrichments>` entry (no ordered file body) the fixed order Overview, Configuration, Steps, Flow,
+Diagram, Script, then the extra sections is used instead.
+
 == Use case 3: bundle a self-contained distribution
 
 `build` takes a stock Hop client zip, enriches it and packages a zip you can ship. It resolves the

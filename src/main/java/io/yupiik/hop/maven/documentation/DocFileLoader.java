@@ -64,6 +64,20 @@ import java.util.Map;
  *   <li>the other {@code ==} sections -&gt; {@link Enrichment#setExtraSections(List)}</li>
  * </ul>
  *
+ * <p>In addition the whole body is preserved verbatim, in source order, in
+ * {@link Enrichment#setBlocks(List)} so the generated page keeps the narrative thread of the
+ * documentation file:</p>
+ *
+ * <ul>
+ *   <li>sections and their prose are kept in the order they were written (prose that follows a
+ *       heading stays under it, nested {@code ===} headings are kept),</li>
+ *   <li>the built-in generated sections can be placed exactly where needed by writing a reserved
+ *       heading {@code == :configuration}, {@code == :steps}, {@code == :flow} or
+ *       {@code == :diagram} at that spot,</li>
+ *   <li>the renderer ({@code DocVisitor}) follows {@link Enrichment#getBlocks()} when present
+ *       instead of the fixed Overview/Configuration/Steps/Flow/Diagram/Script/Extras order.</li>
+ * </ul>
+ *
  * The class is Maven-free (only asciidoc-java + JDK).
  */
 public class DocFileLoader {
@@ -129,52 +143,131 @@ public class DocFileLoader {
         }
         final List<Element> children = body.children() == null ? List.of() : body.children();
 
-        // overview: top-level elements until the first section; script/extra sections after.
-        final var overview = new StringBuilder();
-        final var extraSections = new ArrayList<Enrichment.ExtraSection>();
+        // Walk the body top to bottom and rebuild the narrative order into an ordered block list.
+        // The parser absorbs trailing prose into the preceding element, so each section keeps its
+        // own children (incl. nested === headings, code blocks and trailing paragraphs).
+        final var blocks = new ArrayList<Enrichment.Block>();
+        final StringBuilder overview = new StringBuilder();
         var seenSection = false;
         for (final var element : children) {
             if (element.type() != ElementType.SECTION) {
+                // top-level prose: only meaningful before the first section (the overview); any
+                // trailing top-level block is kept right before the sections to not lose content.
+                final var text = toAsciiDoc(element).trim();
+                if (text.isEmpty()) {
+                    continue;
+                }
                 if (!seenSection) {
-                    overview.append(toAsciiDoc(element));
-                    overview.append("\n\n");
+                    overview.append(text).append("\n\n");
                 } else {
-                    // content after a section should belong to the previous section; for our
-                    // convention the overview is before the script, so append trailing prose to overview.
-                    overview.append(toAsciiDoc(element));
-                    overview.append("\n\n");
+                    blocks.add(new Enrichment.Block.Overview(text));
                 }
                 continue;
             }
             seenSection = true;
             final var section = (Section) element;
             final var title = toAsciiDoc(section.title()).trim();
-            if (isScriptTitle(title) || containsScriptBlock(section)) {
+            final var anchor = anchorOf(title);
+            if (anchor != null) {
+                blocks.add(new Enrichment.Block.Generated(anchor.name().toLowerCase(Locale.ROOT)));
+                continue;
+            }
+            if (isScriptTitle(title) || isScriptSection(section)) {
                 final var script = findScript(section);
+                final var trailing = trailingProse(section);
                 if (script != null) {
-                    enrichment.setScript(script);
+                    blocks.add(new Enrichment.Block.Script(script, trailing));
+                } else if (!trailing.isEmpty()) {
+                    blocks.add(new Enrichment.Block.Overview(trailing));
                 }
             } else {
-                final var extra = new Enrichment.ExtraSection();
-                extra.setTitle(title);
                 final var content = new StringBuilder();
                 for (final var child : section.children()) {
                     content.append(toAsciiDoc(child));
-                    content.append("\n");
+                    content.append('\n');
                 }
-                extra.setContent(content.toString());
-                extraSections.add(extra);
+                blocks.add(
+                        new Enrichment.Block.Section(title, content.toString().trim()));
             }
         }
         final var overviewText = overview.toString().trim();
-        if (!overviewText.isEmpty()) {
-            enrichment.setOverview(overviewText);
+        enrichment.setBlocks(blocks);
+        enrichment.setOverview(overviewText.isEmpty() ? null : overviewText);
+        // backward-compatible derived views (used when renderer ignores blocks or for index checks)
+        enrichment.setScript(blocks.stream()
+                .filter(Enrichment.Block.Script.class::isInstance)
+                .map(Enrichment.Block.Script.class::cast)
+                .map(Enrichment.Block.Script::script)
+                .findFirst()
+                .orElse(null));
+        final var extras = new ArrayList<Enrichment.ExtraSection>();
+        for (final var block : blocks) {
+            if (block instanceof Enrichment.Block.Section extra) {
+                final var item = new Enrichment.ExtraSection();
+                item.setTitle(extra.title());
+                item.setContent(extra.content());
+                extras.add(item);
+            }
         }
-        enrichment.setExtraSections(extraSections);
+        enrichment.setExtraSections(extras);
+    }
+
+    /**
+     * Maps a section title to the built-in generated section it anchors, or {@code null}. The reserved
+     * titles ({@code :configuration}, {@code :steps}, {@code :flow}, {@code :diagram}) let a doc file
+     * interleave the generated sections exactly where the narrative needs them.
+     */
+    private static GeneratedAnchor anchorOf(final String title) {
+        final var lower = title.toLowerCase(Locale.ROOT);
+        for (final var anchor : GeneratedAnchor.values()) {
+            if (lower.equals(":" + anchor.name().toLowerCase(Locale.ROOT))) {
+                return anchor;
+            }
+        }
+        return null;
+    }
+
+    /** The generated sections that can be anchored with a {@code :name} section title. */
+    private enum GeneratedAnchor {
+        CONFIGURATION,
+        STEPS,
+        FLOW,
+        DIAGRAM
     }
 
     private boolean containsScriptBlock(final Section section) {
         return findScript(section) != null;
+    }
+
+    /**
+     * A section is a launch-script section when it carries a non-inline source block: a section whose
+     * children (e.g. a paragraph introducing the snippet or a trailing note) include a
+     * {@code [source,...]} block. Matched by {@code findScript}.
+     */
+    private boolean isScriptSection(final Section section) {
+        return containsScriptBlock(section);
+    }
+
+    private String trailingProse(final Section section) {
+        if (section.children() == null || section.children().isEmpty()) {
+            return "";
+        }
+        // trailing non-code children of a script section (paragraphs after the source block)
+        final var sb = new StringBuilder();
+        var afterCode = false;
+        for (final var child : section.children()) {
+            if (child instanceof Code code && !code.inline()) {
+                afterCode = true;
+                continue;
+            }
+            if (afterCode) {
+                final var text = toAsciiDoc(child).trim();
+                if (!text.isEmpty()) {
+                    sb.append(text).append("\n\n");
+                }
+            }
+        }
+        return sb.toString().trim();
     }
 
     private String findScript(final Section section) {
@@ -208,9 +301,7 @@ public class DocFileLoader {
             case SECTION -> {
                 final var section = (Section) element;
                 final var sb = new StringBuilder();
-                for (final var child : section.children()) {
-                    sb.append(toAsciiDoc(child));
-                }
+                serializedSection(section, sb);
                 yield sb.toString();
             }
             default -> "";
@@ -242,6 +333,27 @@ public class DocFileLoader {
             sb.append(toAsciiDoc(child));
         }
         return sb.toString();
+    }
+
+    /**
+     * Serializes a section into its heading (with the right {@code =} depth, from the parser level)
+     * followed by its children, so nested {@code ===} subsections keep their title when the section is
+     * carried as a free-form {@code ==} block.
+     */
+    private void serializedSection(final Section section, final StringBuilder sb) {
+        final var title = toAsciiDoc(section.title()).trim();
+        if (!title.isEmpty()) {
+            sb.append("=".repeat(Math.max(2, section.level())))
+                    .append(' ')
+                    .append(title)
+                    .append('\n');
+        }
+        if (section.children() != null) {
+            for (final var child : section.children()) {
+                sb.append(toAsciiDoc(child));
+                sb.append('\n');
+            }
+        }
     }
 
     private String serializeList(final String bullet, final List<Element> items) {
