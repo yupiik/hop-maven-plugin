@@ -23,9 +23,11 @@ import io.yupiik.hop.maven.resolve.ArtifactResolver;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.maven.model.Build;
 import org.apache.maven.model.Model;
+import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.repository.internal.MavenRepositorySystemUtils;
 import org.eclipse.aether.RepositorySystem;
@@ -174,12 +176,17 @@ class BuildMojoScratchTest {
         mojo.transforms = List.of(GROUP + ":hop-transform-custom:" + VERSION);
         mojo.waitFor = true;
         mojo.failOnError = true;
+        final var logLines = new ArrayList<String>();
+        mojo.setLog(capturingLog(logLines));
 
         // must not throw: scratch is handled with a warning, the enrichment builds the fake distro
         // and the provided hop-run.sh (made executable) is run.
         mojo.execute();
 
         final var exploded = tmp.resolve("target/hop-run/exploded");
+        assertTrue(
+                logLines.stream().anyMatch(line -> line.contains("[hop] fake-hop")),
+                "the launcher output must be captured through the Maven log, got: " + logLines);
         assertTrue(Files.isRegularFile(exploded.resolve("hop-run.sh")), "fake hop-run.sh must exist");
         assertTrue(exploded.resolve("hop-run.sh").toFile().canExecute(), "fake hop-run.sh must be executable");
         assertTrue(Files.isRegularFile(exploded.resolve("config/hop-config.json")), "baseDirectory config merged");
@@ -221,5 +228,89 @@ class BuildMojoScratchTest {
         locator.addService(RepositoryConnectorFactory.class, BasicRepositoryConnectorFactory.class);
         locator.addService(TransporterFactory.class, FileTransporterFactory.class);
         return locator.getService(RepositorySystem.class);
+    }
+
+    private static Log capturingLog(final List<String> lines) {
+        return new Log() {
+            @Override
+            public boolean isDebugEnabled() {
+                return false;
+            }
+
+            @Override
+            public void debug(final CharSequence content) {
+                lines.add("debug: " + content);
+            }
+
+            @Override
+            public void debug(final CharSequence content, final Throwable error) {
+                lines.add("debug: " + content);
+            }
+
+            @Override
+            public void debug(final Throwable error) {
+                lines.add("debug: " + error.getMessage());
+            }
+
+            @Override
+            public boolean isInfoEnabled() {
+                return true;
+            }
+
+            @Override
+            public void info(final CharSequence content) {
+                lines.add("info: " + content);
+            }
+
+            @Override
+            public void info(final CharSequence content, final Throwable error) {
+                lines.add("info: " + content);
+            }
+
+            @Override
+            public void info(final Throwable error) {
+                lines.add("info: " + error.getMessage());
+            }
+
+            @Override
+            public boolean isWarnEnabled() {
+                return true;
+            }
+
+            @Override
+            public void warn(final CharSequence content) {
+                lines.add("warn: " + content);
+            }
+
+            @Override
+            public void warn(final CharSequence content, final Throwable error) {
+                lines.add("warn: " + content);
+            }
+
+            @Override
+            public void warn(final Throwable error) {
+                lines.add("warn: " + error.getMessage());
+            }
+
+            @Override
+            public boolean isErrorEnabled() {
+                return true;
+            }
+
+            @Override
+            public void error(final CharSequence content) {
+                lines.add("error: " + content);
+            }
+
+            @Override
+            public void error(final CharSequence content, final Throwable error) {
+                lines.add("error: " + content);
+            }
+
+            @Override
+            public void error(final Throwable error) {
+                lines.add("error: " + error.getMessage());
+            }
+        };
     }
 }

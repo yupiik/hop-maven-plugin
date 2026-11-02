@@ -18,8 +18,12 @@ package io.yupiik.hop.maven.mojo;
 import static java.util.Collections.emptyMap;
 
 import io.yupiik.hop.maven.distribution.SecureUnzip;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -28,6 +32,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Consumer;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Parameter;
@@ -42,6 +47,13 @@ import org.apache.maven.plugins.annotations.Parameter;
  * override {@link #runArguments(Path)} to append goal-specific arguments.
  */
 public abstract class BaseDistributionExecuteCommand extends BuildMojo {
+
+    /**
+     * Current mojo execution, used to tag the process output-drainer thread names with the execution
+     * id (e.g. {@code hop-maven-plugin-[run-hop]-hop-run-stdout}) when available.
+     */
+    @Parameter(defaultValue = "${mojoExecution}", readonly = true)
+    protected org.apache.maven.plugin.MojoExecution mojoExecution;
 
     /**
      * Coordinates of the distribution to run, {@code groupId:artifactId:version[:type[:classifier]]},
@@ -211,10 +223,7 @@ public abstract class BaseDistributionExecuteCommand extends BuildMojo {
         final var builder = new ProcessBuilder(command);
         builder.directory(exploded.toFile());
         builder.environment().putAll(env);
-        if (wait) {
-            // when waiting, inherit the console so the launcher output is visible and searchable
-            builder.inheritIO();
-        } else {
+        if (!wait) {
             // when launched in background the child must NOT keep the parent's stdout/stderr pipes open,
             // otherwise Maven would never exit; redirect to a dedicated log file instead.
             final var log = exploded.getParent().resolve(scriptBaseName() + ".log");
@@ -234,7 +243,19 @@ public abstract class BaseDistributionExecuteCommand extends BuildMojo {
         }
         final int exit;
         try {
-            exit = process.waitFor();
+            final var stdout = streamLogger(scriptName, "stdout", process.getInputStream(), getLog()::info);
+            final var stderr = streamLogger(scriptName, "stderr", process.getErrorStream(), getLog()::warn);
+            try {
+                exit = process.waitFor();
+            } finally {
+                for (final var drainer : new Thread[] {stdout, stderr}) {
+                    try {
+                        drainer.join();
+                    } catch (final InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+            }
         } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new MojoExecutionException("Interrupted while waiting for " + scriptName, e);
@@ -243,6 +264,38 @@ public abstract class BaseDistributionExecuteCommand extends BuildMojo {
             throw new MojoExecutionException(scriptName + " exited with code " + exit);
         }
         getLog().info(scriptName + " exited with code " + exit);
+    }
+
+    /**
+     * Starts a named virtual thread that reads {@code stream} line by line and forwards every line
+     * to {@code log} prefixed with {@code [hop] }. The thread inherits the caller's context class
+     * loader (the plugin realm) so any class loading performed while draining stays in the right
+     * loader. Both stdout and stderr are drained concurrently to avoid the classic pipe-buffer
+     * deadlock when the child writes more than the OS pipe capacity to one of them.
+     */
+    private Thread streamLogger(
+            final String script, final String name, final InputStream stream, final Consumer<String> log) {
+        final var executionId = mojoExecution == null ? null : mojoExecution.getExecutionId();
+        final var threadName = "hop-maven-plugin-"
+                + (executionId == null || executionId.isBlank() ? "" : "[" + executionId + "]-")
+                + script + "-" + name;
+        final var loader = Thread.currentThread().getContextClassLoader();
+        return Thread.ofVirtual().name(threadName).start(() -> {
+            final var previous = Thread.currentThread().getContextClassLoader();
+            Thread.currentThread().setContextClassLoader(loader);
+            try {
+                try (final var reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        log.accept("[hop] " + line);
+                    }
+                } catch (final IOException e) {
+                    // process ended: nothing left to read
+                }
+            } finally {
+                Thread.currentThread().setContextClassLoader(previous);
+            }
+        });
     }
 
     private static boolean isWindows() {
