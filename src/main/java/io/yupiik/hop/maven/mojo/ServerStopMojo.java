@@ -48,7 +48,7 @@ public class ServerStopMojo extends BaseHopMojo {
      */
     @Parameter(
             property = "hop.server.stop.serverConfig",
-            defaultValue = "${project.build.directory}/hop-run/exploded/hop-server.xml")
+            defaultValue = "${project.build.directory}/hop/server/exploded/hop-server.xml")
     protected File serverConfig;
 
     /**

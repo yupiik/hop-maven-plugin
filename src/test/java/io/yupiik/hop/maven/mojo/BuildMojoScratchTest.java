@@ -15,6 +15,7 @@
  */
 package io.yupiik.hop.maven.mojo;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -183,7 +184,7 @@ class BuildMojoScratchTest {
         // and the provided hop-run.sh (made executable) is run.
         mojo.execute();
 
-        final var exploded = tmp.resolve("target/hop-run/exploded");
+        final var exploded = tmp.resolve("target/hop/run/exploded");
         assertTrue(
                 logLines.stream().anyMatch(line -> line.contains("[hop] fake-hop")),
                 "the launcher output must be captured through the Maven log, got: " + logLines);
@@ -194,6 +195,214 @@ class BuildMojoScratchTest {
                 Files.isRegularFile(exploded.resolve(
                         "plugins/transforms/hop-transform-custom/hop-transform-custom-" + VERSION + ".jar")),
                 "custom transform installed by the enrichment");
+    }
+
+    @Test
+    void guiRegistersTheDefaultProjectHomeAndActivatesItWithJArgument() throws Exception {
+        final var projectDir = tmp.resolve("project");
+        final var repositories = projectDir.resolve("src/main/repositories");
+        Files.createDirectories(repositories.resolve("metadata"));
+        Files.writeString(repositories.resolve("project-config.json"), """
+                {
+                  "name": "ORA_SYNC_HOP",
+                  "metadataBaseFolder": "${PROJECT_HOME}/metadata",
+                  "config": {"variables": []}
+                }
+                """, StandardCharsets.UTF_8);
+        Files.writeString(repositories.resolve("my-pipeline.hpl"), "<pipeline></pipeline>", StandardCharsets.UTF_8);
+
+        // fake stock distribution content: launcher + a hop-config.json with unrelated keys
+        final var baseDir = projectDir.resolve("src/main/hop/distribution");
+        Files.createDirectories(baseDir.resolve("config"));
+        Files.writeString(baseDir.resolve("config/hop-config.json"), """
+                {
+                  "keepMe": "yes",
+                  "projectsConfig": {
+                    "enabled": true,
+                    "defaultProject": "default",
+                    "projectConfigurations": [
+                      {"projectName": "default", "projectHome": "config/projects/default", "configFilename": "project-config.json"}
+                    ]
+                  }
+                }
+                """, StandardCharsets.UTF_8);
+        Files.writeString(baseDir.resolve("hop-gui.sh"), "#!/bin/sh\necho gui-ok\n", StandardCharsets.UTF_8);
+
+        final var model = new Model();
+        model.setGroupId("io.yupiik.example");
+        model.setArtifactId("gui-sample");
+        model.setVersion("1.0.0");
+        final var build = new Build();
+        build.setDirectory(projectDir.resolve("target").toString());
+        model.setBuild(build);
+
+        final var logLines = new ArrayList<String>();
+        final var resolver = newResolver(tmp.resolve("local-repo"));
+        final var mojo = new GuiMojo() {
+            @java.lang.Override
+            protected ArtifactResolver newResolver() {
+                return resolver;
+            }
+        };
+        mojo.project = new MavenProject(model);
+        mojo.project.setFile(projectDir.resolve("pom.xml").toFile()); // basedir resolution
+        mojo.versionUrl = "scratch";
+        mojo.baseDirectory = baseDir.toFile();
+        mojo.waitFor = true;
+        mojo.failOnError = true;
+        mojo.setLog(capturingLog(logLines));
+        mojo.execute();
+
+        final var exploded = projectDir.resolve("target/hop/gui/exploded");
+        // the project home was merged (default repository) into the canonical Hop project layout
+        // and the source was not modified
+        final var projectHome = exploded.resolve("config/projects/ORA_SYNC_HOP");
+        assertTrue(Files.isRegularFile(projectHome.resolve("project-config.json")), "project-config.json merged");
+        assertTrue(Files.isRegularFile(projectHome.resolve("my-pipeline.hpl")), "pipeline merged");
+        assertTrue(Files.isRegularFile(repositories.resolve("project-config.json")), "source project-config.json kept");
+        // the exploded hop-config.json registered the project and kept the unrelated key
+        final var config = com.google.gson.JsonParser.parseString(
+                        Files.readString(exploded.resolve("config/hop-config.json"), StandardCharsets.UTF_8))
+                .getAsJsonObject();
+        assertEquals("yes", config.get("keepMe").getAsString(), "unrelated hop-config.json keys preserved");
+        final var projectsConfig = config.getAsJsonObject("projectsConfig");
+        assertEquals("ORA_SYNC_HOP", projectsConfig.get("defaultProject").getAsString(), "defaultProject set");
+        final var configurations = projectsConfig.getAsJsonArray("projectConfigurations");
+        assertEquals(
+                "ORA_SYNC_HOP",
+                configurations
+                        .get(configurations.size() - 1)
+                        .getAsJsonObject()
+                        .get("projectName")
+                        .getAsString(),
+                "project registered");
+        assertEquals(
+                projectHome.toAbsolutePath().normalize().toString(),
+                configurations
+                        .get(configurations.size() - 1)
+                        .getAsJsonObject()
+                        .get("projectHome")
+                        .getAsString(),
+                "project home is the canonical config/projects/<name> folder");
+        // the GUI was launched with -j <name> so HopGuiStartProjectLoad enables the project
+        assertTrue(
+                logLines.stream().anyMatch(line -> line.contains("-j ORA_SYNC_HOP")),
+                "the GUI launcher must receive -j ORA_SYNC_HOP, got: " + logLines);
+        assertTrue(
+                logLines.stream().anyMatch(line -> line.contains("[hop] gui-ok")),
+                "the fake GUI must have run, got: " + logLines);
+    }
+
+    @Test
+    void defaultRepositoryMergeIsSkippedWhenTheFolderDoesNotExist() throws Exception {
+        final var projectDir = tmp.resolve("empty-project");
+        final var baseDir = projectDir.resolve("src/main/hop/distribution");
+        Files.createDirectories(baseDir);
+        Files.writeString(baseDir.resolve("hop-run.sh"), "#!/bin/sh\necho fake-hop\n", StandardCharsets.UTF_8);
+
+        final var model = new Model();
+        model.setGroupId("io.yupiik.example");
+        model.setArtifactId("empty");
+        model.setVersion("1.0.0");
+        final var build = new Build();
+        build.setDirectory(projectDir.resolve("target").toString());
+        model.setBuild(build);
+
+        final var logLines = new ArrayList<String>();
+        final var resolver = newResolver(tmp.resolve("local-repo"));
+        final var mojo = new BaseDistributionExecuteCommand() {
+            @java.lang.Override
+            protected String scriptBaseName() {
+                return "hop-run";
+            }
+
+            @java.lang.Override
+            protected ArtifactResolver newResolver() {
+                return resolver;
+            }
+        };
+        mojo.project = new MavenProject(model);
+        mojo.project.setFile(projectDir.resolve("pom.xml").toFile());
+        mojo.versionUrl = "scratch";
+        mojo.baseDirectory = baseDir.toFile();
+        mojo.waitFor = true;
+        mojo.failOnError = true;
+        mojo.setLog(capturingLog(logLines));
+        mojo.execute();
+
+        final var exploded = projectDir.resolve("target/hop/run/exploded");
+        assertTrue(
+                logLines.stream().anyMatch(line -> line.contains("skipping the merge")),
+                "the missing default repository must be skipped without failing, got: " + logLines);
+        assertFalse(Files.exists(exploded.resolve("project-config.json")), "nothing merged");
+        assertTrue(Files.isRegularFile(exploded.resolve("hop-run.sh")), "the fake launcher still runs");
+    }
+
+    @Test
+    void mergeRepositorySkipsVcsAndBuildDirectoriesAndNeverWritesBack() throws Exception {
+        final var projectDir = tmp.resolve("with-junk");
+        final var repositories = projectDir.resolve("src/main/repositories");
+        Files.createDirectories(repositories);
+        Files.writeString(repositories.resolve("project-config.json"), "{\"name\":\"sample\"}", StandardCharsets.UTF_8);
+        // junk that must never be copied: VCS folder, Maven build dir (with a stale exploded distro)
+        final var git = projectDir.resolve(".git");
+        Files.createDirectories(git);
+        Files.writeString(git.resolve("config"), "[core]", StandardCharsets.UTF_8);
+        final var buildDir = projectDir.resolve("target");
+        Files.createDirectories(buildDir);
+        Files.writeString(buildDir.resolve("junk.txt"), "junk", StandardCharsets.UTF_8);
+        final var stale = buildDir.resolve("stale-distro/exploded");
+        Files.createDirectories(stale);
+        Files.writeString(stale.resolve("stale.txt"), "stale", StandardCharsets.UTF_8);
+
+        final var baseDir = projectDir.resolve("src/main/hop/distribution");
+        Files.createDirectories(baseDir);
+        Files.writeString(baseDir.resolve("hop-run.sh"), "#!/bin/sh\necho fake-hop\n", StandardCharsets.UTF_8);
+
+        final var model = new Model();
+        model.setGroupId("io.yupiik.example");
+        model.setArtifactId("junk");
+        model.setVersion("1.0.0");
+        final var build = new Build();
+        build.setDirectory(buildDir.toString());
+        model.setBuild(build);
+
+        final var logLines = new ArrayList<String>();
+        final var resolver = newResolver(tmp.resolve("local-repo"));
+        final var mojo = new BaseDistributionExecuteCommand() {
+            @java.lang.Override
+            protected String scriptBaseName() {
+                return "hop-run";
+            }
+
+            @java.lang.Override
+            protected ArtifactResolver newResolver() {
+                return resolver;
+            }
+        };
+        mojo.project = new MavenProject(model);
+        mojo.project.setFile(projectDir.resolve("pom.xml").toFile());
+        mojo.versionUrl = "scratch";
+        mojo.baseDirectory = baseDir.toFile();
+        mojo.repository = projectDir.toFile(); // explicit repository = whole project root
+        mojo.waitFor = true;
+        mojo.failOnError = true;
+        mojo.setLog(capturingLog(logLines));
+        mojo.execute();
+
+        final var exploded = projectDir.resolve("target/hop/run/exploded");
+        assertTrue(
+                Files.isRegularFile(exploded.resolve("src/main/repositories/project-config.json")),
+                "repository content must be merged");
+        assertFalse(Files.exists(exploded.resolve(".git/config")), "VCS folder must be excluded");
+        assertFalse(Files.exists(exploded.resolve("junk.txt")), "build directory content must be excluded");
+        assertFalse(
+                Files.exists(exploded.resolve("target/stale-distro/exploded/stale.txt")),
+                "a stale exploded distro must not be copied");
+        // the source tree is untouched (only reads happened)
+        assertTrue(Files.isRegularFile(git.resolve("config")), ".git/config still in the source");
+        assertTrue(Files.isRegularFile(buildDir.resolve("junk.txt")), "target/junk.txt still in the source");
+        assertEquals("{\"name\":\"sample\"}", Files.readString(repositories.resolve("project-config.json")));
     }
 
     private static void buildPluginJar(final Path repoDir, final String artifactId) throws Exception {
@@ -228,6 +437,16 @@ class BuildMojoScratchTest {
         locator.addService(RepositoryConnectorFactory.class, BasicRepositoryConnectorFactory.class);
         locator.addService(TransporterFactory.class, FileTransporterFactory.class);
         return locator.getService(RepositorySystem.class);
+    }
+
+    private static ArtifactResolver newResolver(final Path repoDir) throws Exception {
+        final var system = newSystem();
+        final var session = MavenRepositorySystemUtils.newSession();
+        session.setLocalRepositoryManager(
+                system.newLocalRepositoryManager(session, new LocalRepository(repoDir.toFile())));
+        final var remote =
+                new RemoteRepository.Builder("local", "default", repoDir.toUri().toString()).build();
+        return new ArtifactResolver(system, session, List.of(remote));
     }
 
     private static Log capturingLog(final List<String> lines) {

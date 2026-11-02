@@ -47,8 +47,13 @@ to invoke repeatedly (for example once per module) in the same JVM; process exit
 == One distribution, many goals
 
 `build`, `run`, `encrypt`, `gui` and `server` all share the same distribution assembly: they resolve
-and unpack a Hop client zip, merge a repository on top and differ only in the launcher script they
-execute. This keeps the whole toolchain consistent on a single resolved Hop version.
+and unpack a Hop client zip, merge the Hop project home (default `src/main/repositories`, into the
+canonical `config/projects/<name>` home) on top and differ only in the launcher script they execute.
+This keeps the whole toolchain consistent on a single resolved Hop version. Work is done under
+`target/hop/<goal>`, so the source project is never modified. When the merged project home provides a
+`project-config.json`, the project is registered in the distribution `config/hop-config.json` and
+activated on startup (`-j <name>` for the GUI, `--project <name>` for `run`/`server`), so your
+pipelines/actions are visible immediately.
 
 == Next steps
 

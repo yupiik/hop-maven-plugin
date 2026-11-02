@@ -27,6 +27,11 @@ demo-hop/
 This layout matches the plugin defaults, so `render` works out of the box on any such project. The
 plugin only reads the XML files; it does not need the Hop GUI to render or run them.
 
+TIP: the distribution/CLI goals (`run`, `gui`, `encrypt`, `server`) default their `repository` to
+`${project.basedir}/src/main/repositories` and merge it onto the exploded distribution when it
+exists. If your Hop project home lives elsewhere, set `<repository>` explicitly; the merge is
+simply skipped when the folder does not exist.
+
 == Use case 1: render the diagrams in the build
 
 Render every `.hpl`/`.hwf` to SVG (and optionally Mermaid) headlessly, keeping the source-relative
@@ -219,9 +224,41 @@ on top and executes a pipeline or workflow via `hop-run.sh`/`hop-run.bat`:
 </execution>
 ----
 
-A headless `hop-run` needs a run configuration Hop can find. Put it in the merged repository under
-`config/metadata/pipeline-run-configuration/local.json` (Hop reads `config/metadata`, not `metadata/`)
-and reference it with `runConfig=local`.
+A headless `hop-run` needs a run configuration Hop can find. With the default project home it is read
+from the project metadata, i.e. in the source repository `metadata/pipeline-run-configuration/local.json`
+(landing in `config/projects/<name>/metadata/...` after the merge); with an explicit `repository`
+merged at the distribution root, put it under `config/metadata/pipeline-run-configuration/local.json`
+(Hop reads `config/metadata`, not `metadata/`). Reference it with `runConfig=local`.
+
+The `repository` defaults to `${project.basedir}/src/main/repositories` (skipped when absent), so on
+the conventional layout `mvn hop:run -Dhop.run.pipeline=my-pipeline.hpl` just works. With the default
+home the merged content lands in `config/projects/<name>` of the exploded distribution (the canonical
+Hop project layout, where `<name>` is the `name` field of the source `project-config.json` or the
+repository folder name) and the project is registered in `config/hop-config.json` and activated with
+`--project <name>`. When the repository is the whole project root (like `${project.basedir}` above),
+VCS folders (`.git`/`.hg`/`.svn`) and the Maven build directory are excluded from the merge.
+
+If `-f`/`--file` (or `-r`/`--runconfig`, or `--project`) is passed in the `args`, it takes precedence:
+`-f` switches `run` to manual mode (no automatic `-f`, no automatic `--project`), `-r` wins over
+`runConfig`, and `--project` wins over the automatic project activation.
+
+== Use case 4b: open the project in the Hop GUI
+
+`gui` resolves a distribution, merges the same project home and starts `hop-gui.sh`/`hop-gui.bat`
+in the background (`waitFor=false` by default, so Maven exits and you close the window to stop the
+GUI). On the conventional layout:
+
+[source,bash]
+----
+mvn hop:gui -Dhop.version=2.20.0
+----
+
+When the merged project home has a `project-config.json`, the project is registered in the exploded
+distribution `config/hop-config.json` (name from `project-config.json` `name`, else the repository
+folder name), made the `defaultProject` and activated with `-j <name>` (the GUI's project option;
+`run`/`server` use `--project <name>` instead), so your pipelines/actions are visible immediately.
+Everything Hop writes (config, audit, logs, UI state) stays in the workdir (`target/hop/gui/`);
+nothing is ever written back into the source project.
 
 == Use case 5: run the Hop server and stop it
 

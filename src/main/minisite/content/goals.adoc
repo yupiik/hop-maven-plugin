@@ -28,19 +28,23 @@ with JDBC drivers, libs, javaagents, custom transforms, marketplace plugins and 
 
 == Execute a pipeline or workflow
 
-xref:mojo/run.adoc[hop:run] - resolves a distribution, merges a repository folder on top and runs a
-pipeline or workflow via `hop-run.sh`/`hop-run.bat`.
+xref:mojo/run.adoc[hop:run] - resolves a distribution, merges the Hop project home (default
+`src/main/repositories`, into the canonical `config/projects/<name>` home), registers the project
+and runs a pipeline or workflow via `hop-run.sh`/`hop-run.bat` with `--project <name>` activation
+(unless the args already select the project or a file).
 
 == Operate the Hop server
 
-xref:mojo/server.adoc[hop:server] - launches the Hop server in the background; stop it with
+xref:mojo/server.adoc[hop:server] - launches the Hop server in the background (merging/registering
+the same Hop project, activated with `--project <name>`); stop it with
 xref:mojo/server-stop.adoc[hop:server-stop], which sends the authenticated `/shutdown` request.
 
 == Wrap the Hop CLI launchers
 
 xref:mojo/encrypt.adoc[hop:encrypt] - runs `hop-encrypt.sh`/`hop-encrypt.bat` to (de)crypt a password
 string. xref:mojo/gui.adoc[hop:gui] - launches the Hop GUI (`hop-gui.sh`/`hop-gui.bat`) for a resolved
-distribution.
+distribution, registering and activating the merged project (default `src/main/repositories`) so
+its pipelines/actions are visible on startup.
 
 == Next steps
 
