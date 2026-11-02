@@ -63,8 +63,5 @@ the pages are generated.
 * Page navigation is driven by the `minisite-index-*` AsciiDoc attributes on each page: only pages
   that carry them appear in the home page tiles and the left menu.
 
-== Deploying the site
-
-The `minisite.deploy` property is disabled by default (`false`). When enabled it triggers a deploy
-step, but no FTP target is configured in this project yet - the published site
-(https://github.com/yupiik/hop-maven-plugin) is hosted on GitHub Pages.
+The site is deployed automatically on every push to `main` by the `deploy-site` GitHub Actions
+workflow (GitHub Pages).
