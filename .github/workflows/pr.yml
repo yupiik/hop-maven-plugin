@@ -15,6 +15,10 @@ jobs:
   build:
     runs-on: ubuntu-26.04
     timeout-minutes: 60
+    strategy:
+      matrix:
+        # 3.9.16 = resolver 1.9.x, 3.10.0 = resolver 2.0.x (GA), 4.0.0-rc-7 = Maven 4 preview (resolver 2.0.x)
+        maven: ['3.9.16', '3.10.0', '4.0.0-rc-7']
     steps:
       # composite action: checkout + JDK + maven cache + maven install (from Maven Central)
       - name: Setup Maven Action
@@ -22,7 +26,7 @@ jobs:
         # base version v1.21.0 - revert to a tag once s4u releases a version containing that fix
         uses: s4u/setup-maven-action@8da9a2c
         with:
-          maven-version: '3.9.16'
+          maven-version: ${{ matrix.maven }}
           java-version: '21'
           java-distribution: temurin
 

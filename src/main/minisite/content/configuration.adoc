@@ -83,6 +83,10 @@ comes from the same `maven.artifact.threads` configuration the resolver uses (fa
 `aether.dependencyCollector.bf.threads`, then 1). The staging copies are idempotent (temp file +
 atomic move), so repeated or concurrent executions never observe partial files.
 
+The plugin compiles against the Maven Resolver 1.9.x API but keeps its jars `provided`: it runs
+against whatever resolver Maven ships - 1.9.x on Maven 3.9, 2.x on Maven 3.10 and Maven 4 - using
+only the API that is stable and non-deprecated on both majors.
+
 === id to artifact mapping
 
 The default rule is `org.apache.hop:hop-transform-<id>` / `org.apache.hop:hop-action-<id>`

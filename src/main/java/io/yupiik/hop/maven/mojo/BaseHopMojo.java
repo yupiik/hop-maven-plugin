@@ -53,7 +53,7 @@ import org.apache.maven.project.MavenProject;
 import org.eclipse.aether.RepositorySystem;
 import org.eclipse.aether.RepositorySystemSession;
 import org.eclipse.aether.repository.RemoteRepository;
-import org.eclipse.aether.util.concurrency.ExecutorUtils;
+import org.eclipse.aether.util.ConfigUtils;
 
 /**
  * Base class for mojos that need to find Apache Hop pipelines ({@code .hpl}) and workflows
@@ -280,11 +280,19 @@ public abstract class BaseHopMojo extends AbstractMojo {
         final List<RemoteRepository> repositories = project != null && project.getRemoteProjectRepositories() != null
                 ? project.getRemoteProjectRepositories()
                 : List.of();
-        // aligned on Maven's own resolver parallelism (maven.artifact.threads)
+        // aligned on Maven's own resolver parallelism (maven.artifact.threads);
+        // ConfigUtils is the non-deprecated equivalent of ExecutorUtils.threadCount (deprecated in resolver 2.x)
+        // and behaves identically on resolver 1.9.x (Maven 3.9) and 2.x (Maven 3.10/4);
+        // Math.max(1,..) preserves ExecutorUtils' validation that the result is at least 1.
         final var resolutionThreads = repositorySystemSession == null
                 ? 1
-                : ExecutorUtils.threadCount(
-                        repositorySystemSession, 1, "aether.dependencyCollector.bf.threads", "maven.artifact.threads");
+                : Math.max(
+                        1,
+                        ConfigUtils.getInteger(
+                                repositorySystemSession,
+                                1,
+                                "aether.dependencyCollector.bf.threads",
+                                "maven.artifact.threads"));
         getLog().debug("Auto-resolve: version='" + version + "', threads=" + resolutionThreads + ", staging base='"
                 + base + "', repositories=" + repositories.size());
         getLog().debug("Auto-resolve: " + toResolveTransforms.size() + " transform id(s) to resolve: "
