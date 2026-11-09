@@ -22,6 +22,7 @@ import io.yupiik.hop.maven.distribution.DistributionBuilder;
 import io.yupiik.hop.maven.distribution.DistributionResolver;
 import io.yupiik.hop.maven.distribution.SecureUnzip;
 import io.yupiik.hop.maven.distribution.ZipPackager;
+import io.yupiik.hop.maven.mojo.configuration.Customizations;
 import io.yupiik.hop.maven.resolve.ArtifactResolver;
 import io.yupiik.hop.maven.resolve.Coordinates;
 import java.io.File;
@@ -178,6 +179,15 @@ public class BuildMojo extends BaseHopMojo {
      */
     @Parameter
     protected List<Override> overrides = emptyList();
+    /**
+     * Final customization of the assembled distribution: {@code deletions} remove files
+     * (ant-style relative globs, directories removed recursively) and {@code additions} copy a
+     * resolved dependency at a relative target path. Deletions run first, additions last, so an
+     * addition can replace a deleted path. Both are guarded so nothing outside the distribution
+     * root can be touched.
+     */
+    @Parameter
+    protected Customizations customizations;
 
     /**
      * Map of additional headers to send on the download request; the {@code username}/{@code password}
@@ -261,7 +271,21 @@ public class BuildMojo extends BaseHopMojo {
         final var resolver = newResolver();
         final var builder = new DistributionBuilder(resolver, hop, getLog()::debug);
         builder.enrich(new DistributionBuilder.EnrichmentSpec(
-                drivers, libs, javaagents, transforms, plugins, toOverrides(), baseDir));
+                drivers, libs, javaagents, transforms, plugins, toOverrides(), baseDir, toCustomizations()));
+    }
+
+    private DistributionBuilder.Customizations toCustomizations() {
+        if (customizations == null) {
+            return null;
+        }
+        return new DistributionBuilder.Customizations(
+                customizations.deletions,
+                customizations.additions == null
+                        ? null
+                        : customizations.additions.stream()
+                                .filter(addition -> addition != null && addition.gav != null && !addition.gav.isBlank())
+                                .map(addition -> new DistributionBuilder.Addition(addition.gav, addition.target))
+                                .toList());
     }
 
     /**

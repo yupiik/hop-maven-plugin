@@ -354,6 +354,12 @@ Two rules matter here:
 * a filter *without* `toLayer` *discards* its matches. That is how the sample removes Jib's default
   `/app` scaffolding (`<glob>**/app/**</glob>`).
 
+TIP: to strip content from the distribution itself (the packaged zip, not just the image), use the
+`build` goal's `customizations` block instead: `deletions` remove files with ant-style relative globs
+and `additions` drop resolved Maven dependencies at a relative path. The block runs last, after the
+`baseDirectory` merge and inside it deletions run before additions. Unlike a layer filter it applies
+to every distribution artifact, not only the Jib image.
+
 NOTE: hop:build writes the added JDBC drivers, javaagent jars, transforms and plugins into the *same*
 stock folders (`lib/jdbc/`, `lib/`, `plugins/transforms/`, `plugins/<category>/`), so stock and custom
 content are not distinguishable by path. Trying to split them into separate layers would therefore drag

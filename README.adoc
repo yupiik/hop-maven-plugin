@@ -1,8 +1,9 @@
 = Hop Maven Plugin
 
 Apache Hop Maven goals: render pipelines and workflows as diagrams, generate documentation, build
-custom Hop distributions (transforms, marketplace plugins, JDBC drivers, overrides), run
-pipelines/workflows and wrap the Hop encrypt/gui/server CLIs.
+custom Hop distributions (transforms, marketplace plugins, JDBC drivers, overrides, customizations
+with file deletions and dependency additions), run pipelines/workflows and wrap the Hop
+encrypt/gui/server CLIs.
 
 == Requirements
 

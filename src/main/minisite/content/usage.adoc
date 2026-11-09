@@ -190,6 +190,24 @@ version from `versionUrl` (defaults to the Apache downloads) and, from the `base
     <transforms>
       <transform>com.acme:acme-custom-transform:1.0.0</transform>
     </transforms>
+    <customizations>
+      <deletions>
+        <!-- strip stock content you do not want to ship (ant-style globs) -->
+        <deletion>samples/**</deletion>
+        <deletion>lib/core/hop-transform-textfile*.jar</deletion>
+      </deletions>
+      <additions>
+        <!-- add a dependency at a relative path; a trailing '/' means a folder and appends the file name, otherwise it is the exact destination file path -->
+        <addition>
+          <gav>com.acme:acme-driver:jar:1.0.0</gav>
+          <target>lib/jdbc/</target>
+        </addition>
+        <addition>
+          <gav>com.acme:acme-config:2.0.0</gav>
+          <target>config/acme.json</target>
+        </addition>
+      </additions>
+    </customizations>
   </configuration>
 </execution>
 ----
@@ -197,6 +215,13 @@ version from `versionUrl` (defaults to the Apache downloads) and, from the `base
 The zip is written to `target/<finalName>.zip` and attached to the build by default; override the
 classifier with `classifier` and disable packaging or attachment with `packageDistribution`/`attach`.
 A later goal in the same reactor can reference it as a distribution.
+
+The optional `customizations` block runs last, after drivers/libs/javaagents/transforms/plugins and
+the `baseDirectory` merge: `deletions` remove files matching ant-style relative globs (a matched
+directory is removed recursively, a pattern matching nothing is ignored) and `additions` copy a
+resolved Maven dependency (as `groupId:artifactId:type[:classifier]:version`) at a relative
+`target`. Deletions run before additions, so an addition can replace a just-deleted path. Both are
+guarded: a pattern or target resolving outside the distribution root fails the build.
 
 == Use case 4: run a pipeline or workflow headlessly
 

@@ -15,9 +15,12 @@
  */
 package io.yupiik.hop.maven.distribution;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.yupiik.hop.maven.resolve.ArtifactResolver;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -80,6 +83,7 @@ class DistributionBuilderTest {
                         List.of("org.apache.hop:hop-transform-fake:" + VERSION),
                         List.of(),
                         List.of(),
+                        null,
                         null));
 
         assertTrue(
@@ -98,6 +102,7 @@ class DistributionBuilderTest {
                         List.of(),
                         List.of(),
                         List.of(),
+                        null,
                         null));
 
         assertTrue(
@@ -119,6 +124,7 @@ class DistributionBuilderTest {
                                 "lib/core/existing.jar",
                                 io.yupiik.hop.maven.resolve.Coordinates.of("org.apache.hop:hop-lib-fake:" + VERSION),
                                 Map.of())),
+                        null,
                         null));
 
         // the override copies the resolved (zip) jar bytes over the target in place
@@ -136,7 +142,7 @@ class DistributionBuilderTest {
 
         new DistributionBuilder(resolver, hopRoot, ignored -> {})
                 .enrich(new DistributionBuilder.EnrichmentSpec(
-                        List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), base));
+                        List.of(), List.of(), List.of(), List.of(), List.of(), List.of(), base, null));
 
         assertTrue(Files.isRegularFile(hopRoot.resolve("config/project-config.json")), "config merged");
         assertTrue(
@@ -156,6 +162,7 @@ class DistributionBuilderTest {
                         List.of(),
                         List.of(),
                         List.of(),
+                        null,
                         null));
 
         final var script = Files.readString(hopRoot.resolve("hop-run.sh"), StandardCharsets.UTF_8);
@@ -163,6 +170,140 @@ class DistributionBuilderTest {
                 script.contains("-javaagent:lib/hop-lib-fake-" + VERSION + ".jar"),
                 "javaagent must be injected: " + script);
         assertTrue(Files.isRegularFile(hopRoot.resolve("lib/hop-lib-fake-" + VERSION + ".jar")));
+    }
+
+    @Test
+    void deletionsRunAfterBaseDirectoryMerge() throws Exception {
+        final var base = tmp.resolve("src/main/hop/distribution");
+        Files.createDirectories(base.resolve("config"));
+        Files.writeString(base.resolve("config/project-config.json"), "{\"name\":\"mine\"}");
+
+        new DistributionBuilder(resolver, hopRoot, ignored -> {})
+                .enrich(new DistributionBuilder.EnrichmentSpec(
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        base,
+                        new DistributionBuilder.Customizations(List.of("config/*"), List.of())));
+
+        assertTrue(
+                Files.notExists(hopRoot.resolve("config/project-config.json")),
+                "customization deletion must win over baseDirectory merge");
+    }
+
+    @Test
+    void additionReplacesDeletedPath() throws Exception {
+        new DistributionBuilder(resolver, hopRoot, ignored -> {})
+                .enrich(new DistributionBuilder.EnrichmentSpec(
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        null,
+                        new DistributionBuilder.Customizations(
+                                List.of("lib/core/existing.jar"),
+                                List.of(new DistributionBuilder.Addition(
+                                        "org.apache.hop:hop-lib-fake:" + VERSION, "lib/core/existing.jar")))));
+
+        final var bytes = Files.readAllBytes(hopRoot.resolve("lib/core/existing.jar"));
+        assertTrue(bytes.length > 0, "addition must replace the deleted file");
+        assertTrue(bytes[0] == 'P' && bytes[1] == 'K', "replaced file must be the zipped dependency jar");
+    }
+
+    @Test
+    void deletionSupportsGlobsAndIgnoresNoMatch() throws Exception {
+        new DistributionBuilder(resolver, hopRoot, ignored -> {})
+                .enrich(new DistributionBuilder.EnrichmentSpec(
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        null,
+                        new DistributionBuilder.Customizations(
+                                List.of("lib/core/*.jar", "does-not-exist/**"), List.of())));
+
+        assertTrue(Files.notExists(hopRoot.resolve("lib/core/existing.jar")), "glob must delete the matching jar");
+        assertTrue(Files.isRegularFile(hopRoot.resolve("hop-run.sh")), "unmatched paths must be left untouched");
+    }
+
+    @Test
+    void additionTargetHandlesExistingDirAndTrailingSlash() throws Exception {
+        Files.createDirectories(hopRoot.resolve("lib/jdbc"));
+
+        new DistributionBuilder(resolver, hopRoot, ignored -> {})
+                .enrich(new DistributionBuilder.EnrichmentSpec(
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        null,
+                        new DistributionBuilder.Customizations(
+                                List.of(),
+                                List.of(
+                                        new DistributionBuilder.Addition(
+                                                "org.apache.hop:hop-driver-fake:" + VERSION, "lib/jdbc/"),
+                                        new DistributionBuilder.Addition(
+                                                "org.apache.hop:hop-lib-fake:" + VERSION, "lib/core/")))));
+
+        assertTrue(
+                Files.isRegularFile(hopRoot.resolve("lib/jdbc/hop-driver-fake-" + VERSION + ".jar")),
+                "trailing slash target must append the resolved file name");
+        assertTrue(
+                Files.isRegularFile(hopRoot.resolve("lib/core/hop-lib-fake-" + VERSION + ".jar")),
+                "trailing slash target must append the resolved file name");
+    }
+
+    @Test
+    void additionTargetWithoutSlashIsExactFileName() throws Exception {
+        new DistributionBuilder(resolver, hopRoot, ignored -> {})
+                .enrich(new DistributionBuilder.EnrichmentSpec(
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        null,
+                        new DistributionBuilder.Customizations(
+                                List.of(),
+                                List.of(new DistributionBuilder.Addition(
+                                        "org.apache.hop:hop-driver-fake:" + VERSION, "lib/jdbc/foo.jar")))));
+
+        // a target without a trailing '/' is the exact file path: the dependency is written as
+        // lib/jdbc/foo.jar, not lib/jdbc/foo.jar/<dep-name>.jar
+        assertTrue(Files.isRegularFile(hopRoot.resolve("lib/jdbc/foo.jar")), "exact file target must be used as-is");
+        assertFalse(
+                Files.isRegularFile(hopRoot.resolve("lib/jdbc/foo.jar/hop-driver-fake-" + VERSION + ".jar")),
+                "no extra dir must be created under the exact file target");
+    }
+
+    @Test
+    void additionTargetEscapesRootThrows() {
+        final var builder = new DistributionBuilder(resolver, hopRoot, ignored -> {});
+        assertThrows(
+                IOException.class,
+                () -> builder.enrich(new DistributionBuilder.EnrichmentSpec(
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        null,
+                        new DistributionBuilder.Customizations(
+                                List.of(),
+                                List.of(new DistributionBuilder.Addition(
+                                        "org.apache.hop:hop-lib-fake:" + VERSION, "../escape.jar"))))),
+                "target escaping the distribution root must fail");
     }
 
     private void buildPluginJar(final String artifactId) throws Exception {

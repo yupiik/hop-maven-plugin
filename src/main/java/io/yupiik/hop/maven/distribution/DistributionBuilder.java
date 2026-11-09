@@ -74,6 +74,92 @@ public class DistributionBuilder {
         if (spec.baseDirectory() != null) {
             mergeBaseDirectory(spec.baseDirectory());
         }
+        if (spec.customizations() != null) {
+            applyCustomizations(spec.customizations());
+        }
+    }
+
+    private void applyCustomizations(final Customizations customizations) throws IOException {
+        if (customizations.deletions() != null) {
+            deleteFiles(customizations.deletions());
+        }
+        if (customizations.additions() != null && !customizations.additions().isEmpty()) {
+            addFiles(customizations.additions());
+        }
+    }
+
+    /**
+     * Remove the files (recursively when a directory matches) selected by the ant-style relative
+     * globs, guarded so nothing outside {@code hopRoot} can be deleted.
+     */
+    private void deleteFiles(final List<String> deletions) throws IOException {
+        final var root = hopRoot.toAbsolutePath().normalize();
+        final var patterns = AntGlob.compile(deletions);
+        if (patterns.isEmpty()) {
+            return;
+        }
+        final var toDelete = new java.util.ArrayList<Path>();
+        try (var stream = Files.walk(root)) {
+            for (final Path file : stream.filter(p -> !p.equals(root)).toList()) {
+                final var rel = root.relativize(file).toString().replace('\\', '/');
+                if (patterns.matches(rel)) {
+                    toDelete.add(file);
+                }
+            }
+        }
+        for (final Path file : toDelete) {
+            if (!file.toAbsolutePath().normalize().startsWith(root)) {
+                throw new IOException("Deletion escapes the distribution root: " + file);
+            }
+            if (Files.isDirectory(file)) {
+                deleteRecursively(file);
+            } else {
+                Files.deleteIfExists(file);
+            }
+            info.accept("Deleted " + root.relativize(file));
+        }
+    }
+
+    private void deleteRecursively(final Path dir) throws IOException {
+        try (var stream = Files.walk(dir)) {
+            for (final Path p :
+                    stream.sorted(java.util.Comparator.reverseOrder()).toList()) {
+                Files.deleteIfExists(p);
+            }
+        }
+    }
+
+    /**
+     * Copy the resolved dependency of each addition at its relative target: a trailing {@code /}
+     * means the target is a folder and the resolved file name is appended, otherwise the target is
+     * the exact destination file path.
+     */
+    private void addFiles(final List<Addition> additions) throws IOException {
+        final var root = hopRoot.toAbsolutePath().normalize();
+        for (final Addition addition : additions) {
+            if (addition == null || addition.gav() == null || addition.gav().isBlank()) {
+                continue;
+            }
+            final var target = addition.target();
+            final var parsed = Coordinates.of(addition.gav());
+            final var source = resolver.resolve(parsed);
+            Path dest;
+            if (target == null || target.isBlank()) {
+                dest = root.resolve(source.getFileName().toString());
+            } else {
+                final var raw = target.replace('\\', '/');
+                dest = root.resolve(raw).normalize();
+                if (!dest.startsWith(root)) {
+                    throw new IOException("Addition target escapes the distribution root: " + target);
+                }
+                if (raw.endsWith("/")) {
+                    dest = dest.resolve(source.getFileName().toString());
+                }
+            }
+            Files.createDirectories(dest.getParent());
+            Files.copy(source, dest, StandardCopyOption.REPLACE_EXISTING);
+            info.accept("Added " + addition.gav() + " -> " + root.relativize(dest));
+        }
     }
 
     private void copyJars(final List<String> coordinates, final Path target, final String kind) throws IOException {
@@ -248,7 +334,20 @@ public class DistributionBuilder {
             List<String> transforms,
             List<String> marketplacePlugins,
             List<OverrideEntry> overrides,
-            Path baseDirectory) {}
+            Path baseDirectory,
+            Customizations customizations) {}
+
+    /**
+     * Final customization block: {@code deletions} (relative ant-style globs, removed recursively)
+     * run first, then {@code additions} (resolved dependencies copied at a relative target) run
+     * last so they win over the rest of the assembly.
+     */
+    public record Customizations(List<String> deletions, List<Addition> additions) {}
+
+    /**
+     * A dependency {@code gav} added at a relative {@code target} path inside the distribution.
+     */
+    public record Addition(String gav, String target) {}
 
     /**
      * An in-place jar override: a relative {@code path} inside the distribution overridden by a

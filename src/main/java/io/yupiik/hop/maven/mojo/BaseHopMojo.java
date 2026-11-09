@@ -18,6 +18,7 @@ package io.yupiik.hop.maven.mojo;
 import static java.util.Collections.emptyList;
 
 import com.google.gson.JsonParser;
+import io.yupiik.hop.maven.distribution.AntGlob;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
@@ -31,7 +32,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.regex.Pattern;
 import javax.inject.Inject;
 import org.apache.hop.core.Const;
 import org.apache.hop.core.HopEnvironment;
@@ -358,6 +358,8 @@ public abstract class BaseHopMojo extends AbstractMojo {
      */
     protected List<Path> collectDiagramFiles(final Path source) throws MojoExecutionException {
         final var files = new ArrayList<Path>();
+        final var includesPatterns = AntGlob.compile(includes);
+        final var excludesPatterns = AntGlob.compile(excludes);
         try {
             Files.walkFileTree(source, new SimpleFileVisitor<Path>() {
                 @Override
@@ -367,7 +369,8 @@ public abstract class BaseHopMojo extends AbstractMojo {
 
                 @Override
                 public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs) {
-                    if (isSupported(file) && matchesIncludesExcludes(source, file)) {
+                    if (isSupported(file)
+                            && matchesIncludesExcludes(source, file, includesPatterns, excludesPatterns)) {
                         files.add(file);
                     }
                     return FileVisitResult.CONTINUE;
@@ -384,50 +387,19 @@ public abstract class BaseHopMojo extends AbstractMojo {
         return lower.endsWith(".hpl") || lower.endsWith(".hwf");
     }
 
-    private boolean matchesIncludesExcludes(final Path root, final Path file) {
+    private boolean matchesIncludesExcludes(
+            final Path root,
+            final Path file,
+            final AntGlob.Compiled includesPatterns,
+            final AntGlob.Compiled excludesPatterns) {
         final var rel = root.relativize(file).toString().replace('\\', '/');
-        if (includes.isEmpty()) {
-            return excludes == null || excludes.isEmpty() || !matchesAny(excludes, rel);
+        if (includesPatterns.isEmpty()) {
+            return excludesPatterns.isEmpty() || !excludesPatterns.matches(rel);
         }
-        if (!matchesAny(includes, rel)) {
+        if (!includesPatterns.matches(rel)) {
             return false;
         }
-        return excludes == null || excludes.isEmpty() || !matchesAny(excludes, rel);
-    }
-
-    private boolean matchesAny(final List<String> patterns, final String relPath) {
-        for (final String raw : patterns) {
-            if (matchesAnt(raw.replace('\\', '/'), relPath)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean matchesAnt(final String pattern, final String path) {
-        final var regex = Pattern.compile(antToRegex(pattern));
-        return regex.matcher(path).find();
-    }
-
-    private String antToRegex(final String pattern) {
-        final var out = new StringBuilder();
-        for (int i = 0; i < pattern.length(); i++) {
-            final var c = pattern.charAt(i);
-            switch (c) {
-                case '*' -> {
-                    if (i + 1 < pattern.length() && pattern.charAt(i + 1) == '*') {
-                        out.append(".*");
-                        i++;
-                    } else {
-                        out.append("[^/]*");
-                    }
-                }
-                case '?' -> out.append("[^/]");
-                case '.' -> out.append("\\.");
-                default -> out.append(c);
-            }
-        }
-        return out.toString();
+        return excludesPatterns.isEmpty() || !excludesPatterns.matches(rel);
     }
 
     protected IHopMetadataProvider hopMetadataProvider(final Path metadata, final Variables variables) {
