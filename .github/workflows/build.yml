@@ -25,7 +25,7 @@ jobs:
       - name: Setup Maven Action
         # pinned to the merged PR #173 commit (fixes the deprecated setup-java jdkFile input, dropping the warning);
         # base version v1.21.0 - revert to a tag once s4u releases a version containing that fix
-        uses: s4u/setup-maven-action@8da9a2ce045f6f610f43985a87a62f256e963374
+        uses: s4u/setup-maven-action@6f4258affaf478b384ea1efa19f5938ffe9388c5
         with:
           maven-version: ${{ matrix.maven }}
           java-version: '21'
