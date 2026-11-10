@@ -43,13 +43,12 @@ mvn package
 The output is a fully static site in `target/hop-maven-plugin/`. Open it with any static file server,
 or directly from the filesystem - the pages use relative links, so they work from `file://` too.
 
-.Live-preview with a local server (Python's built-in HTTP server)
+.Live-preview with yupiik-tools' built-in server
 
 [source,bash]
 ----
-mvn package
-python3 -m http.server --directory target/hop-maven-plugin 8080
-# then open http://localhost:8080
+mvn yupiik-tools:serve-minisite@minisite
+# opens http://localhost:4200 in the browser automatically (falls back to opening it manually)
 ----
 
 The site is configured in the `minisite` execution of `pom.xml`: `source` is
