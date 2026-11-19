@@ -27,6 +27,17 @@ These variables resolve HOP references such as `${pc.databases.ora11.host}` or
 TIP: the sample project stores connection settings in an `env-config.json` with a `variables` array;
 that file is directly usable as the `configFile`.
 
+== Distribution download proxies
+
+HTTP(S) distribution downloads use the active proxies from Maven's `settings.xml`, including proxy credentials and Maven-encrypted proxy passwords.
+Proxy selection follows Maven Resolver's protocol matching and pipe-separated `nonProxyHosts` wildcard rules, including when following redirects.
+For example, use `localhost|127.*|::1` to bypass the proxy for local servers.
+Proxy authentication is separate from the download server's credentials and is scoped to the configured proxy host and port.
+When Maven has no active proxy, the JDK's default proxy selection remains in effect.
+
+NOTE: Downloads use the JDK HTTP client, so JVM restrictions on proxy authentication still apply; HTTPS tunneling with Basic proxy authentication can require `-Djdk.http.auth.tunneling.disabledSchemes=` in `MAVEN_OPTS`.
+On JDKs before 24, an authenticated proxy suppresses preemptive `Authorization` headers: Basic download server authentication requires a server challenge, and Bearer download server authentication requires JDK 24 or later.
+
 == Metadata
 
 The `metadataFolder` (default `<project-basedir>/metadata`) is handed to a `JsonMetadataProvider`

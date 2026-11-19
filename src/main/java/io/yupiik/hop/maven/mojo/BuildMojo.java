@@ -40,6 +40,9 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProjectHelper;
 import org.apache.maven.settings.Settings;
+import org.apache.maven.settings.building.SettingsProblem;
+import org.apache.maven.settings.crypto.DefaultSettingsDecryptionRequest;
+import org.apache.maven.settings.crypto.SettingsDecrypter;
 
 /**
  * Assembles a custom Apache Hop distribution.
@@ -210,10 +213,13 @@ public class BuildMojo extends BaseHopMojo {
     protected String password;
 
     /**
-     * The current Maven settings (used to find a matching {@code server} for the download host).
+     * The current Maven settings (download server credentials and active proxies).
      */
     @Parameter(defaultValue = "${settings}", readonly = true)
     protected Settings settings;
+
+    @Inject
+    private SettingsDecrypter settingsDecrypter;
 
     /**
      * Whether a distribution downloaded from a URL is cached into the Maven local repository so later
@@ -330,10 +336,10 @@ public class BuildMojo extends BaseHopMojo {
         return versionUrl == null || versionUrl.isBlank() || "scratch".equalsIgnoreCase(versionUrl.trim());
     }
 
-    private DistributionResolver newResolverForDownload(final Path workdir) {
+    private DistributionResolver newResolverForDownload(final Path workdir) throws IOException {
         return new DistributionResolver(
                 newResolver(),
-                settings,
+                downloadSettings(),
                 effectiveVersion(),
                 username,
                 password,
@@ -343,6 +349,27 @@ public class BuildMojo extends BaseHopMojo {
                 null,
                 cacheDistribution,
                 Duration.ofMinutes(downloadTimeoutMinutes));
+    }
+
+    private Settings downloadSettings() throws IOException {
+        if (settings == null || settingsDecrypter == null) {
+            return settings;
+        }
+        final var decrypted = settings.clone();
+        for (final var proxy : decrypted.getProxies()) {
+            if (!proxy.isActive()) {
+                continue;
+            }
+            final var result = settingsDecrypter.decrypt(new DefaultSettingsDecryptionRequest(proxy));
+            if (result.getProblems().stream()
+                    .anyMatch(problem -> problem.getSeverity() == SettingsProblem.Severity.ERROR
+                            || problem.getSeverity() == SettingsProblem.Severity.FATAL)) {
+                throw new IOException("Unable to decrypt Maven proxy credentials for '" + proxy.getId() + "'");
+            }
+            proxy.setUsername(result.getProxy().getUsername());
+            proxy.setPassword(result.getProxy().getPassword());
+        }
+        return decrypted;
     }
 
     private String authorizationHeaderName() {

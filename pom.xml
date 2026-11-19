@@ -421,6 +421,23 @@
                   </configuration>
                 </preAction>
               </preActions>
+              <attributes>
+                <minisite-menu-1>/goals.html</minisite-menu-1>
+                <minisite-menu-1-title>Goals</minisite-menu-1-title>
+                <minisite-menu-1-icon>fas fa-list</minisite-menu-1-icon>
+                <minisite-menu-2>/overview.html</minisite-menu-2>
+                <minisite-menu-2-title>Why this plugin</minisite-menu-2-title>
+                <minisite-menu-2-icon>fas fa-layer-group</minisite-menu-2-icon>
+                <minisite-menu-3>/usage.html</minisite-menu-3>
+                <minisite-menu-3-title>Usage</minisite-menu-3-title>
+                <minisite-menu-3-icon>fas fa-play</minisite-menu-3-icon>
+                <minisite-menu-4>/configuration.html</minisite-menu-4>
+                <minisite-menu-4-title>Configuration</minisite-menu-4-title>
+                <minisite-menu-4-icon>fas fa-sliders-h</minisite-menu-4-icon>
+                <minisite-menu-5>/docker-image.html</minisite-menu-5>
+                <minisite-menu-5-title>Container image (Jib)</minisite-menu-5-title>
+                <minisite-menu-5-icon>fas fa-box-open</minisite-menu-5-icon>
+              </attributes>
             </configuration>
           </execution>
         </executions>

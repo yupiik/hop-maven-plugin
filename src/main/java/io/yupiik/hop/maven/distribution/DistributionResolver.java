@@ -18,15 +18,26 @@ package io.yupiik.hop.maven.distribution;
 import io.yupiik.hop.maven.resolve.ArtifactResolver;
 import io.yupiik.hop.maven.resolve.Coordinates;
 import java.io.IOException;
+import java.net.Authenticator;
+import java.net.InetSocketAddress;
+import java.net.PasswordAuthentication;
+import java.net.Proxy;
+import java.net.ProxySelector;
+import java.net.SocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.Duration;
+import java.util.Base64;
+import java.util.List;
 import java.util.function.Consumer;
 import org.apache.maven.settings.Settings;
+import org.eclipse.aether.repository.RemoteRepository;
+import org.eclipse.aether.util.repository.DefaultProxySelector;
 
 /**
  * Resolves the Apache Hop distribution archive (zip) either from an HTTP(S) URL or from a Maven
@@ -132,18 +143,14 @@ public class DistributionResolver {
         final var auth = ServerAuthHeader.forUrl(uri, settings, username, password, authorizationHeaderName, decipher);
         final var target = workdir.resolve(defaultZipName(url));
         info.accept("Downloading " + url + (auth != null ? " with credentials for " + uri.getHost() : ""));
-        try (final HttpClient client = HttpClient.newBuilder()
-                .followRedirects(HttpClient.Redirect.NORMAL)
-                .connectTimeout(Duration.ofSeconds(30))
-                .build()) {
-            final var request =
-                    HttpRequest.newBuilder(uri).timeout(downloadTimeout).GET();
-            if (auth != null) {
-                request.header(auth.name(), auth.value());
-            }
+        final var clientBuilder = HttpClient.newBuilder()
+                .followRedirects(HttpClient.Redirect.NEVER)
+                .connectTimeout(Duration.ofSeconds(30));
+        configureProxy(clientBuilder, uri, auth);
+        try (final var client = clientBuilder.build()) {
             final HttpResponse<Path> response;
             try {
-                response = client.send(request.build(), HttpResponse.BodyHandlers.ofFile(target));
+                response = downloadResponse(client, uri, auth, target);
             } catch (final InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new IOException("Interrupted while downloading " + url, e);
@@ -162,6 +169,128 @@ public class DistributionResolver {
             }
         }
         return target;
+    }
+
+    private HttpResponse<Path> downloadResponse(
+            final HttpClient client, final URI uri, final ServerAuthHeader.Header auth, final Path target)
+            throws IOException, InterruptedException {
+        var current = uri;
+        for (var redirects = 0; redirects < 5; redirects++) {
+            final var request =
+                    HttpRequest.newBuilder(current).timeout(downloadTimeout).GET();
+            if (auth != null && sameOrigin(uri, current)) {
+                request.header(auth.name(), auth.value());
+            }
+            final var response = client.send(
+                    request.build(),
+                    HttpResponse.BodyHandlers.ofFile(
+                            target,
+                            StandardOpenOption.CREATE,
+                            StandardOpenOption.WRITE,
+                            StandardOpenOption.TRUNCATE_EXISTING));
+            final var status = response.statusCode();
+            if (status != 301 && status != 302 && status != 303 && status != 307 && status != 308) {
+                return response;
+            }
+            final var location = response.headers().firstValue("Location");
+            if (location.isEmpty()) {
+                throw new IOException("Missing Location header in distribution redirect from " + current);
+            }
+            final URI next;
+            try {
+                next = current.resolve(location.get());
+            } catch (final IllegalArgumentException e) {
+                throw new IOException("Invalid distribution redirect from " + current, e);
+            }
+            if (!("http".equalsIgnoreCase(next.getScheme()) || "https".equalsIgnoreCase(next.getScheme()))
+                    || ("https".equalsIgnoreCase(current.getScheme()) && "http".equalsIgnoreCase(next.getScheme()))) {
+                throw new IOException("Unsafe distribution redirect from " + current + " to " + next);
+            }
+            // A fresh request makes HttpClient reselect the proxy for the redirected host.
+            current = next;
+        }
+        throw new IOException("Too many distribution redirects from " + uri);
+    }
+
+    private static boolean sameOrigin(final URI first, final URI second) {
+        return first.getScheme().equalsIgnoreCase(second.getScheme())
+                && first.getHost().equalsIgnoreCase(second.getHost())
+                && effectivePort(first) == effectivePort(second);
+    }
+
+    private static int effectivePort(final URI uri) {
+        return uri.getPort() >= 0 ? uri.getPort() : "https".equalsIgnoreCase(uri.getScheme()) ? 443 : 80;
+    }
+
+    private void configureProxy(final HttpClient.Builder builder, final URI uri, final ServerAuthHeader.Header auth) {
+        final var proxies = settings == null
+                ? List.<org.apache.maven.settings.Proxy>of()
+                : settings.getProxies().stream()
+                        .filter(org.apache.maven.settings.Proxy::isActive)
+                        .toList();
+        if (proxies.isEmpty()) {
+            return; // preserve the JDK's default proxy selection when Maven has no active proxy
+        }
+        final var selector = new DefaultProxySelector();
+        for (final var proxy : proxies) {
+            selector.add(
+                    new org.eclipse.aether.repository.Proxy(proxy.getProtocol(), proxy.getHost(), proxy.getPort()),
+                    proxy.getNonProxyHosts());
+        }
+        builder.proxy(new ProxySelector() {
+            @Override
+            public List<Proxy> select(final URI uri) {
+                // Use Maven Resolver's protocol fallback and nonProxyHosts matching, also for redirects.
+                final var proxy =
+                        selector.getProxy(new RemoteRepository.Builder("download", "default", uri.toString()).build());
+                return proxy == null
+                        ? List.of(Proxy.NO_PROXY)
+                        : List.of(new Proxy(
+                                Proxy.Type.HTTP, InetSocketAddress.createUnresolved(proxy.getHost(), proxy.getPort())));
+            }
+
+            @Override
+            public void connectFailed(final URI uri, final SocketAddress address, final IOException failure) {
+                // HttpClient reports the failure to the caller.
+            }
+        });
+        if (proxies.stream().anyMatch(proxy -> proxy.getUsername() != null)) {
+            builder.authenticator(new Authenticator() {
+                @Override
+                protected PasswordAuthentication getPasswordAuthentication() {
+                    if (getRequestorType() != RequestorType.PROXY) {
+                        // JDK 21 suppresses explicit Authorization headers when an authenticator is set.
+                        // Answer Basic server challenges only for the original download origin.
+                        if (getRequestorType() == RequestorType.SERVER
+                                && getRequestingURL() != null
+                                && auth != null
+                                && "Authorization".equalsIgnoreCase(auth.name())
+                                && auth.value().startsWith("Basic ")
+                                && "basic".equalsIgnoreCase(getRequestingScheme())
+                                && sameOrigin(uri, URI.create(getRequestingURL().toString()))) {
+                            final var credentials = new String(
+                                    Base64.getDecoder().decode(auth.value().substring(6)),
+                                    java.nio.charset.StandardCharsets.UTF_8);
+                            final var separator = credentials.indexOf(':');
+                            return new PasswordAuthentication(
+                                    credentials.substring(0, separator),
+                                    credentials.substring(separator + 1).toCharArray());
+                        }
+                        return null;
+                    }
+                    for (final var proxy : proxies) {
+                        if (proxy.getHost().equalsIgnoreCase(getRequestingHost())
+                                && proxy.getPort() == getRequestingPort()
+                                && proxy.getUsername() != null) {
+                            final var secret = proxy.getPassword();
+                            final var clear = secret == null ? "" : decipher == null ? secret : decipher.apply(secret);
+                            return new PasswordAuthentication(proxy.getUsername(), clear.toCharArray());
+                        }
+                    }
+                    return null;
+                }
+            });
+        }
     }
 
     /**
